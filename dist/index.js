@@ -5,7 +5,7 @@ import { ECPairFactory } from 'ecpair';
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from 'bip39';
 import BIP32Factory from 'bip32';
 import * as ecc from 'tiny-secp256k1';
-import { input, confirm } from '@inquirer/prompts';
+import { input, confirm, select } from '@inquirer/prompts';
 // const tinysecp: TinySecp256k1Interface = require('tiny-secp256k1');
 import * as tinysecp from 'tiny-secp256k1';
 initEccLib(tinysecp);
@@ -585,12 +585,17 @@ const GetFeeEstimates = async (target_blocks) => {
     // const vBytes = 312.5;
     // console.log("vBytes:" + vBytes);
     var estFeeRate = await GetFeeRateEst(target_blocks); // estimate fee rate in BTC/kvB
-    estFeeRate = estFeeRate / 10000;
-    // const estFeeRate = 0.00000000139;
-    // console.log("estFeeRate: " + estFeeRate);
-    const estFee = Math.ceil((estFeeRate * vBytes) * 1000000000);
-    estFeeRate = (estFeeRate * 1000000000).toFixed(3);
-    return ({ estFee: estFee, estFeeRate: estFeeRate, blocks: target_blocks });
+    if (estFeeRate) {
+        estFeeRate = estFeeRate / 10000;
+        // const estFeeRate = 0.00000000139;
+        // console.log("estFeeRate: " + estFeeRate);
+        const estFee = Math.ceil((estFeeRate * vBytes) * 1000000000);
+        const estFeeRateStr = (estFeeRate * 1000000000).toFixed(3);
+        return ({ estFee: estFee, estFeeRate: estFeeRateStr, blocks: target_blocks });
+    }
+    else {
+        return null;
+    }
 };
 function tweakSigner(signer, opts = {}) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -725,66 +730,67 @@ async function doSwitchStage(stage) {
                 doSwitchStage(config.stage);
             }
             break;
-        // case STAGE_ENUM.EST_DID_TX:
-        //     console.log("STAGE EST_DID_TX");
-        //     var ests = [];
-        //     var est = {};
-        //     var currest = {};
-        //     est = await GetFeeEstimates(6);
-        //     ests.push(est);
-        //     est = await GetFeeEstimates(8);
-        //     ests.push(est);
-        //     est = await GetFeeEstimates(10);
-        //     ests.push(est);
-        //     est = await GetFeeEstimates(12);
-        //     ests.push(est);
-        //     est = await GetFeeEstimates(18);
-        //     ests.push(est);
-        //     est = await GetFeeEstimates(24);
-        //     ests.push(est);
-        //     est = await GetFeeEstimates(36);
-        //     ests.push(est);
-        //     currest = await GetFeeEstimates(conf_target);
-        //     console.log("Given the current estimated fee rate of " + currest.estFeeRate + " sats/vB the estimated fee is " + currest.estFee + " sats within " + currest.blocks + " blocks.");
-        //     var choices = [
-        //         {
-        //             name: 'Continue with ' + currest.estFee + ' sats',
-        //             value: currest.estFee,
-        //             description: 'Continue to the next stage?',
-        //         }
-        //     ]
-        //     for (var i=0; i<ests.length; i++) {
-        //         est = ests[i];
-        //         choices.push({
-        //             name: 'Fee ' + est.estFee + " sats in " + est.blocks + " blocks = approx " + ((est.blocks)*10) + " mins = " + (((est.blocks)*10)/60).toFixed(2) + " hours", 
-        //             value: est.estFee,
-        //             description: 'Select fee rate ' + est.estFeeRate + ' sats/vB = ' + est.estFee + ' sats for confirmation in approx ' + ((est.blocks)*10) + ' minutes'
-        //         });
-        //     }
-        //     const answer = await select({
-        //         message: 'Continue or adjust fee.',
-        //         choices: choices
-        //     });
-        //     console.log("fee selected: " + answer);
-        //     config.satsPerVByte = 5;
-        //     for (var i=0; i<ests.length; i++) {
-        //         est = ests[i];
-        //         if (answer == est.estFee) {
-        //             config.satsPerVByte = Math.ceil(est.estFeeRate);
-        //         }
-        //     }
-        //     config.satoshis_needed = answer;
-        //     satoshis_needed = config.satoshis_needed;
-        //     await setJSONconfig(JSON.stringify( config, null, 2 ));
-        //     yes_continue = await confirm({ message: 'Continue? (or n to abort and try later)' });
-        //     if (!yes_continue) {
-        //         process.exit(1);
-        //     } else {
-        //         config.stage = STAGE_ENUM.FUND_ADDR;
-        //         await setJSONconfig(JSON.stringify( config, null, 2 ));
-        //         doSwitchStage(config.stage);
-        //     }
-        // break;
+        case STAGE_ENUM.EST_DID_TX:
+            console.log("STAGE EST_DID_TX");
+            var ests = [];
+            var est;
+            var currest;
+            est = await GetFeeEstimates(6);
+            ests.push(est);
+            est = await GetFeeEstimates(8);
+            ests.push(est);
+            est = await GetFeeEstimates(10);
+            ests.push(est);
+            est = await GetFeeEstimates(12);
+            ests.push(est);
+            est = await GetFeeEstimates(18);
+            ests.push(est);
+            est = await GetFeeEstimates(24);
+            ests.push(est);
+            est = await GetFeeEstimates(36);
+            ests.push(est);
+            currest = await GetFeeEstimates(conf_target);
+            console.log("Given the current estimated fee rate of " + currest.estFeeRate + " sats/vB the estimated fee is " + currest.estFee + " sats within " + currest.blocks + " blocks.");
+            var choices = [
+                {
+                    name: 'Continue with ' + currest.estFee + ' sats',
+                    value: currest.estFee,
+                    description: 'Continue to the next stage?',
+                }
+            ];
+            for (var i = 0; i < ests.length; i++) {
+                est = ests[i];
+                choices.push({
+                    name: 'Fee ' + est.estFee + " sats in " + est.blocks + " blocks = approx " + ((est.blocks) * 10) + " mins = " + (((est.blocks) * 10) / 60).toFixed(2) + " hours",
+                    value: est.estFee,
+                    description: 'Select fee rate ' + est.estFeeRate + ' sats/vB = ' + est.estFee + ' sats for confirmation in approx ' + ((est.blocks) * 10) + ' minutes'
+                });
+            }
+            const answer = await select({
+                message: 'Continue or adjust fee.',
+                choices: choices
+            });
+            console.log("fee selected: " + answer);
+            config.satsPerVByte = 5;
+            for (var i = 0; i < ests.length; i++) {
+                est = ests[i];
+                if (answer == est.estFee) {
+                    config.satsPerVByte = est.estFeeRate;
+                }
+            }
+            config.satoshis_needed = answer;
+            satoshis_needed = config.satoshis_needed;
+            await setJSONconfig(JSON.stringify(config, null, 2));
+            yes_continue = await confirm({ message: 'Continue? (or n to abort and try later)' });
+            if (!yes_continue) {
+                process.exit(1);
+            }
+            else {
+                config.stage = STAGE_ENUM.FUND_ADDR;
+                await setJSONconfig(JSON.stringify(config, null, 2));
+                doSwitchStage(config.stage);
+            }
+            break;
         // case STAGE_ENUM.FUND_ADDR:
         //     console.log("STAGE FUND_ADDR");
         //     console.log("utxopath:  " + utxopath);

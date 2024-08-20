@@ -626,7 +626,7 @@ const GetFeeRateEst = async (target_blocks: number ) => {
         
         if (response && response.data) {
             // console.log("est: " + JSON.stringify(response.data, null, 2));
-            return response.data.result.feerate;
+            return (response.data.result.feerate as number);
         } else {
             console.log("Invalid response received");
             return null;
@@ -641,7 +641,13 @@ const GetFeeRateEst = async (target_blocks: number ) => {
     }
 };
 
-const GetFeeEstimates = async (target_blocks: number) => {
+export interface FeeEst {
+    estFee: number;
+    estFeeRate: string;
+    blocks: number;
+}
+
+const GetFeeEstimates = async (target_blocks: number): Promise<FeeEst> => {
 
     // const tx4est = "01000000000101b02aa692bfb952614c9224c0b7debd432b5ccc5564fe515aa5eac377903302fb0000000000ffffffff030000000000000000286a2664696403ed01fffb32f3e3756160c48fa1f74f7d7651aea38d30a6a6e2f759fd7f423d4338e84a010000000000002251202243bb457ab73009ec574fd3b153461c5ed8125d265f6196497317260ee9fed0067a0000000000001600149eec719066d33271f1e88235246609c348603be00140fd76eea93b02df04ab21892a3a5437864ab7f2a0d4a88c994c2f57998431c14fcac7eabab665144eef6856226bea020d52d19e6ce8f35e26df0520db48d218bb00000000";
     const tx4est = "02000000000104e37a206dbbe44495498e788857c2cc8c2ef2f64f5ae540b7600809de58a1657e0000000000fdffffff135f274715b1adc37ff3927fbf5a62bf0a3c53be1fbd5d52cde566664cd3b4ee0100000000fdffffff598d3029a7fef09191f516dfdfc1cb256777bbd16a17c37b2c322c492bb4e9ba0000000000fdffffff51ba09c30017e4147428c1e1506df4f0f4fe5e888affabfc47dd8a51c143b37c0000000000fdffffff018d7d0000000000001600140acffa4e1c383f51c8bbbca8b859635fa5d1468e0247304402202f34bd3e5a9b583265699248417589c29246daae21fce4313126aff820f663ea02203ddbdc596d332282e3fb9fee7d1893e3e9d376733d1c7998a480e7cdfa886a0e01210313c67245c56c631db7e8f3f9236ec257f45a4fe3dd75c0529440378d34c9f0da0247304402200bdcde0949a4c63e43c50bd4dc2e0b3af92ac6f286f36a15a2dcfd29b47726fb022020310ed0d633edf1ea1743d41cfacd634275d210a534097da7fe16d1d4e1948d0121037d7952369586f2999ddf5fc75464c35db9a28dc9a7c0f1957bf462562a94e3c10247304402203133e8cc638ae520731f35f739a11920144fd245c94c6540d91ece1abe71820702202e1b65d3b9beae0f99f6a089396e1f8fc6c5412aa001c77e73e3a26ca009841c012103d1d0943351249bcc74a41b0292e5e430a182e7c0f2554a0828d5b9eab18f3eb40247304402200aded2bd207a8d7114b59fe256f866b290a4f4e927b348a6bbdde086969817d0022052ab8e61a2e0802d908d98298143ec1e229133566fac1f1d849122ced9321715012103d5cd408aec274ebae56f04f39bebd7ee2c8249f21ee7ba97ff079375e83a4b0162d62b00";
@@ -658,15 +664,19 @@ const GetFeeEstimates = async (target_blocks: number) => {
     // console.log("vBytes:" + vBytes);
 
     var estFeeRate = await GetFeeRateEst(target_blocks);   // estimate fee rate in BTC/kvB
-    estFeeRate = estFeeRate / 10000;
-    // const estFeeRate = 0.00000000139;
-    // console.log("estFeeRate: " + estFeeRate);
+    if (estFeeRate) {
+        estFeeRate = estFeeRate / 10000;
+        // const estFeeRate = 0.00000000139;
+        // console.log("estFeeRate: " + estFeeRate);
 
-    const estFee = Math.ceil((estFeeRate * vBytes)*1000000000);
+        const estFee = Math.ceil((estFeeRate * vBytes)*1000000000);
 
-    estFeeRate = (estFeeRate * 1000000000).toFixed(3);
+        const estFeeRateStr = (estFeeRate * 1000000000).toFixed(3);
 
-    return({estFee: estFee, estFeeRate: estFeeRate, blocks: target_blocks});
+        return({estFee: estFee, estFeeRate: estFeeRateStr, blocks: target_blocks});
+    } else {
+        return (null as unknown as FeeEst);
+    }
 
 }
 
@@ -842,83 +852,83 @@ async function doSwitchStage(stage: string) {
 
         break;
 
-        // case STAGE_ENUM.EST_DID_TX:
-        //     console.log("STAGE EST_DID_TX");
-        //     var ests = [];
-        //     var est = {};
-        //     var currest = {};
+        case STAGE_ENUM.EST_DID_TX:
+            console.log("STAGE EST_DID_TX");
+            var ests = [];
+            var est: FeeEst;
+            var currest: FeeEst;
 
-        //     est = await GetFeeEstimates(6);
-        //     ests.push(est);
+            est = await GetFeeEstimates(6);
+            ests.push(est);
 
-        //     est = await GetFeeEstimates(8);
-        //     ests.push(est);
+            est = await GetFeeEstimates(8);
+            ests.push(est);
 
-        //     est = await GetFeeEstimates(10);
-        //     ests.push(est);
+            est = await GetFeeEstimates(10);
+            ests.push(est);
 
-        //     est = await GetFeeEstimates(12);
-        //     ests.push(est);
+            est = await GetFeeEstimates(12);
+            ests.push(est);
 
-        //     est = await GetFeeEstimates(18);
-        //     ests.push(est);
+            est = await GetFeeEstimates(18);
+            ests.push(est);
 
-        //     est = await GetFeeEstimates(24);
-        //     ests.push(est);
+            est = await GetFeeEstimates(24);
+            ests.push(est);
 
-        //     est = await GetFeeEstimates(36);
-        //     ests.push(est);
+            est = await GetFeeEstimates(36);
+            ests.push(est);
 
-        //     currest = await GetFeeEstimates(conf_target);
-        //     console.log("Given the current estimated fee rate of " + currest.estFeeRate + " sats/vB the estimated fee is " + currest.estFee + " sats within " + currest.blocks + " blocks.");
+            currest = await GetFeeEstimates(conf_target);
+            console.log("Given the current estimated fee rate of " + currest.estFeeRate + " sats/vB the estimated fee is " + currest.estFee + " sats within " + currest.blocks + " blocks.");
 
-        //     var choices = [
-        //         {
-        //             name: 'Continue with ' + currest.estFee + ' sats',
-        //             value: currest.estFee,
-        //             description: 'Continue to the next stage?',
-        //         }
-        //     ]
+            var choices = [
+                {
+                    name: 'Continue with ' + currest.estFee + ' sats',
+                    value: currest.estFee,
+                    description: 'Continue to the next stage?',
+                }
+            ]
 
-        //     for (var i=0; i<ests.length; i++) {
-        //         est = ests[i];
-        //         choices.push({
-        //             name: 'Fee ' + est.estFee + " sats in " + est.blocks + " blocks = approx " + ((est.blocks)*10) + " mins = " + (((est.blocks)*10)/60).toFixed(2) + " hours", 
-        //             value: est.estFee,
-        //             description: 'Select fee rate ' + est.estFeeRate + ' sats/vB = ' + est.estFee + ' sats for confirmation in approx ' + ((est.blocks)*10) + ' minutes'
-        //         });
-        //     }
+            for (var i=0; i<ests.length; i++) {
+                est = ests[i];
+                choices.push({
+                    name: 'Fee ' + est.estFee + " sats in " + est.blocks + " blocks = approx " + ((est.blocks)*10) + " mins = " + (((est.blocks)*10)/60).toFixed(2) + " hours", 
+                    value: est.estFee,
+                    description: 'Select fee rate ' + est.estFeeRate + ' sats/vB = ' + est.estFee + ' sats for confirmation in approx ' + ((est.blocks)*10) + ' minutes'
+                });
+            }
 
-        //     const answer = await select({
-        //         message: 'Continue or adjust fee.',
-        //         choices: choices
-        //     });
+            const answer = await select({
+                message: 'Continue or adjust fee.',
+                choices: choices
+            });
 
-        //     console.log("fee selected: " + answer);
+            console.log("fee selected: " + answer);
 
-        //     config.satsPerVByte = 5;
-        //     for (var i=0; i<ests.length; i++) {
-        //         est = ests[i];
-        //         if (answer == est.estFee) {
-        //             config.satsPerVByte = Math.ceil(est.estFeeRate);
-        //         }
-        //     }
+            config.satsPerVByte = 5;
+            for (var i=0; i<ests.length; i++) {
+                est = ests[i];
+                if (answer == est.estFee) {
+                    config.satsPerVByte = est.estFeeRate;
+                }
+            }
 
-        //     config.satoshis_needed = answer;
-        //     satoshis_needed = config.satoshis_needed;
-        //     await setJSONconfig(JSON.stringify( config, null, 2 ));
+            config.satoshis_needed = answer;
+            satoshis_needed = config.satoshis_needed;
+            await setJSONconfig(JSON.stringify( config, null, 2 ));
 
-        //     yes_continue = await confirm({ message: 'Continue? (or n to abort and try later)' });
+            yes_continue = await confirm({ message: 'Continue? (or n to abort and try later)' });
 
-        //     if (!yes_continue) {
-        //         process.exit(1);
-        //     } else {
-        //         config.stage = STAGE_ENUM.FUND_ADDR;
-        //         await setJSONconfig(JSON.stringify( config, null, 2 ));
-        //         doSwitchStage(config.stage);
-        //     }
+            if (!yes_continue) {
+                process.exit(1);
+            } else {
+                config.stage = STAGE_ENUM.FUND_ADDR;
+                await setJSONconfig(JSON.stringify( config, null, 2 ));
+                doSwitchStage(config.stage);
+            }
 
-        // break;
+        break;
 
         // case STAGE_ENUM.FUND_ADDR:
         //     console.log("STAGE FUND_ADDR");
