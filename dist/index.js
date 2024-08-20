@@ -1,8 +1,8 @@
 import { VerificationRelationshipFlags } from '@horologger/did-btc-sdk';
 const verificationRelationshipFlags = VerificationRelationshipFlags.AUTHENTICATION | VerificationRelationshipFlags.ASSERTION; // flags to indicate that this public key can be used for authentication and assertion
-import { initEccLib, networks, crypto } from "bitcoinjs-lib";
+import { initEccLib, networks, payments, crypto } from "bitcoinjs-lib";
 import { ECPairFactory } from 'ecpair';
-import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from 'bip39';
+import { mnemonicToSeedSync, validateMnemonic } from 'bip39';
 import BIP32Factory from 'bip32';
 import * as ecc from 'tiny-secp256k1';
 import { input, confirm, select } from '@inquirer/prompts';
@@ -150,7 +150,8 @@ const STAGE_ENUM = {
 };
 if (!config) {
     console.log("No existing config found.  Generating new mnemonic.");
-    const mnemonic = generateMnemonic();
+    // const mnemonic = generateMnemonic();
+    const mnemonic = 'same move resemble game system settle vicious zebra please swamp fitness good';
     console.log("mnemonic: " + mnemonic);
     if (validateMnemonic(mnemonic)) {
         console.log("mnemonic is valid");
@@ -194,6 +195,7 @@ else {
 const blocks_to_confirm = 6; // Look back x for confirmed transactions
 const conf_target = 8; // Blocks for fee estimation
 const blocks_to_wait = blocks_to_confirm + 2; // Blocks wait for funds
+utxopath = rootpath + "/0/" + index.toString();
 var child1 = root.derivePath(utxopath);
 var privkey = child1.privateKey;
 var keypair = null;
@@ -208,8 +210,8 @@ else {
 // await start_p2pktr(keypair);
 // async function start_p2pktr(keypair: Signer) {
 //     console.log(`Running "Pay to Pubkey with taproot example"`);
-//     // Tweak the original keypair
-//     const tweakedSigner = tweakSigner(keypair, { network });
+// Tweak the original keypair
+// const tweakedSigner = tweakSigner(keypair, { network });
 //     // Generate an address from the tweaked public key
 //     const p2pktr = payments.p2tr({
 //         pubkey: toXOnly(tweakedSigner.publicKey),
@@ -791,82 +793,49 @@ async function doSwitchStage(stage) {
                 doSwitchStage(config.stage);
             }
             break;
-        // case STAGE_ENUM.FUND_ADDR:
-        //     console.log("STAGE FUND_ADDR");
-        //     console.log("utxopath:  " + utxopath);
-        //     var child1: BIP32Factory.BIP32Interface = root.derivePath(utxopath);
-        //     var privkey = child1.privateKey;
-        //     var keypair = null; 
-        //     if (privkey !== undefined) {
-        //         console.log("Creating keypair from mnemonic.");
-        //         keypair = ECPair.fromPrivateKey(privkey, { network: networkk });
-        //     } else {
-        //         console.log("Creating random keypair.");
-        //         keypair = ECPair.makeRandom({ network: networkk });
-        //     }
-        //     // function tweakSigner(signer: Signer, opts: any = {}): Signer {
-        //     //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        //     //     // @ts-ignore
-        //     //     let privateKey: Uint8Array | undefined = signer.privateKey!;
-        //     //     if (!privateKey) {
-        //     //         throw new Error('Private key is required for tweaking signer!');
-        //     //     }
-        //     //     if (signer.publicKey[0] === 3) {
-        //     //         privateKey = tinysecp.privateNegate(privateKey);
-        //     //     }
-        //     //     const tweakedPrivateKey = tinysecp.privateAdd(
-        //     //         privateKey,
-        //     //         tapTweakHash(toXOnly(signer.publicKey), opts.tweakHash),
-        //     //     );
-        //     //     if (!tweakedPrivateKey) {
-        //     //         throw new Error('Invalid tweaked private key!');
-        //     //     }
-        //     //     return ECPair.fromPrivateKey(Buffer.from(tweakedPrivateKey), {
-        //     //         network: opts.network,
-        //     //     });
-        //     // }
-        //     // function tapTweakHash(pubKey: Buffer, h: Buffer | undefined): Buffer {
-        //     //     return crypto.taggedHash(
-        //     //         'TapTweak',
-        //     //         Buffer.concat(h ? [pubKey, h] : [pubKey]),
-        //     //     );
-        //     // }
-        //     // function toXOnly(pubkey: Buffer): Buffer {
-        //     //     return pubkey.subarray(1, 33)
-        //     // }
-        //     const tweakedSigner = tweakSigner(keypair, { network: networkk });
-        //     // Look here... https://github.com/Eunovo/taproot-with-bitcoinjs/blob/main/src/index.ts
-        //     // const fundingAddress: bitcoin.payments.Payment = bitcoin.payments.p2tr({
-        //     //     internalPubkey: toXOnly(child1.publicKey),
-        //     //     network: networkk
-        //     // });
-        //     const p2pktr = bitcoin.payments.p2tr({
-        //         pubkey: toXOnly(tweakedSigner.publicKey),
-        //         network: networkk
-        //     });
-        //     // var fundingAddressString = "";
-        //     // if (fundingAddress.address !== undefined) {
-        //     //     fundingAddressString = fundingAddress.address;
-        //     // }
-        //     const fundingAddressString = p2pktr.address ?? "";
-        //     console.log("  [✔] Funding Address Genereated");
-        //     console.log("    Address ["+ index +"] -> "+ fundingAddressString);
-        //     config["fundingAddr"] = fundingAddressString;
-        //     // config["spendingPrv"] = child1.privateKey;
-        //     console.log("It's difficult to estimate exactly the fees required.");
-        //     console.log("Please enter a Taproot P2TR address(" + addr_prefix + "...) to receive any change.");
-        //     // Add a validator https://github.com/SBoudrias/Inquirer.js/tree/main/packages/input
-        //     const changeAddressString = await input({ message: 'Change Address: ', default: addr_prefix+"..." });
-        //     config["changeAddr"] = changeAddressString;
-        //     yes_continue = await confirm({ message: 'Continue?' });
-        //     if (!yes_continue) {
-        //         process.exit(1);
-        //     } else {
-        //         config.stage = STAGE_ENUM.WAIT_FOR_FUNDS;
-        //         await setJSONconfig(JSON.stringify( config, null, 2 ));
-        //         doSwitchStage(config.stage);
-        //     }
-        // break;
+        case STAGE_ENUM.FUND_ADDR:
+            console.log("STAGE FUND_ADDR");
+            console.log("utxopath:  " + utxopath);
+            var child1 = root.derivePath(utxopath);
+            var privkey = child1.privateKey;
+            var keypair = null;
+            if (privkey !== undefined) {
+                console.log("Creating keypair from mnemonic.");
+                keypair = ECPair.fromPrivateKey(privkey, { network: network });
+            }
+            else {
+                console.log("Creating random keypair.");
+                keypair = ECPair.makeRandom({ network });
+            }
+            // Tweak the original keypair
+            const tweakedSigner = tweakSigner(keypair, { network });
+            // Generate an address from the tweaked public key
+            const p2pktr = payments.p2tr({
+                pubkey: toXOnly(tweakedSigner.publicKey),
+                network
+            });
+            const fundingAddressString = p2pktr.address ?? "";
+            // Look here... https://github.com/Eunovo/taproot-with-bitcoinjs/blob/main/src/index.ts
+            // Also at the project taproot-with0-bitcoinjs 
+            console.log("  [✔] Funding Address Genereated");
+            console.log("    Address [" + index + "] -> " + fundingAddressString);
+            config["fundingAddr"] = fundingAddressString;
+            // config["spendingPrv"] = child1.privateKey;
+            console.log("It's difficult to estimate exactly the fees required.");
+            console.log("Please enter a Taproot P2TR address(" + addr_prefix + "...) to receive any change.");
+            // Add a validator https://github.com/SBoudrias/Inquirer.js/tree/main/packages/input
+            const changeAddressString = await input({ message: 'Change Address: ', default: addr_prefix + "..." });
+            config["changeAddr"] = changeAddressString;
+            yes_continue = await confirm({ message: 'Continue?' });
+            if (!yes_continue) {
+                process.exit(1);
+            }
+            else {
+                config.stage = STAGE_ENUM.WAIT_FOR_FUNDS;
+                await setJSONconfig(JSON.stringify(config, null, 2));
+                doSwitchStage(config.stage);
+            }
+            break;
         // case STAGE_ENUM.WAIT_FOR_FUNDS:
         //     console.log("STAGE WAIT_FOR_FUNDS");
         //     console.log("at addr: " + config.fundingAddr);
