@@ -13,13 +13,17 @@ import {
     encodeDidBtc,
     isBitcoinTransactionWithChange,
     resolveDidBtc,
-    encoding
+    encoding,
+    BitcoinTransaction,
+    Network,
+    DidBtcIdentifier,
+    DidDocument
 //     encodeMultibase,
 //     encodeMultikey,
 //     prependCodecToKey,
 } from '@horologger/did-btc-sdk';
 
-const verificationRelationshipFlags = VerificationRelationshipFlags.AUTHENTICATION | VerificationRelationshipFlags.ASSERTION; // flags to indicate that this public key can be used for authentication and assertion
+// const verificationRelationshipFlags = VerificationRelationshipFlags.AUTHENTICATION | VerificationRelationshipFlags.ASSERTION; // flags to indicate that this public key can be used for authentication and assertion
 
 import {
     initEccLib,
@@ -27,6 +31,7 @@ import {
     Signer,
     payments,
     crypto,
+    Transaction,
     Psbt
 } from "bitcoinjs-lib";
 
@@ -89,7 +94,7 @@ if (process.env.BTC_RPC_PORT === undefined) { console.log("Missing BTC_RPC_PORT"
 
 //Define the network
 var network = networks.testnet; // was networkk use bitcoin.networks.testnet for testnet
-var didnetwork = 'testnet'; // was network
+var didnetwork: Network = 'testnet'; // was network
 var addr_prefix = "tb1"; // TestNet Addresses
 var index = 0;
 var rootpath = "m/86'/1'/0'"; // 86 = Taproot : 1 = Testnet3 
@@ -166,6 +171,9 @@ const STAGE_ENUM = {
     FUND_ADDR: "fund_addr",
     WAIT_FOR_FUNDS: "wait_for_funds",
     FORGE_DID_TX: "forge_did_tx",
+    BROADCAST_TX: "broadcast_tx",
+    WAIT_FOR_CONF: "wait_for_conf",
+    VERIFY_DID: "verify_did",
     ALL_FINISHED: "all_finished",
     UNKNOWN: "unknown",
     ERROR: "error"
@@ -308,6 +316,89 @@ const GetBlockHash = async (height: number) => {
         return null;
     }
 };
+
+const GetTransaction = async (txid: string) => {
+    var hash = null;
+    const body = {
+        jsonrpc: "1.0",
+        id: "curltest",
+        method: "gettransaction",
+        params: [txid]
+    };
+    
+    try {
+        const response = await axios.post(`http://${btc_rpc_host}:${btc_rpc_port}/`, body, {
+            auth: {
+                username: btc_rpc_user,
+                password: btc_rpc_password,
+            },
+        });
+        
+        if (response && response.data) {
+            console.log("blockhash: " + JSON.stringify(response.data, null, 2));
+            return response.data.result;
+        } else {
+            console.log("Invalid response received");
+            return null;
+        }
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            console.log("Axios Error Response:", error.response?.data);
+        } else {
+            console.log("Error Message:", (error as Error).message);
+        }
+        return null;
+    }
+};
+
+const GetTransactionAtIndex = async (hash: string, txidx: number) => {
+    const body = {
+        jsonrpc: "1.0",
+        id: "curltest",
+        method: "getblock",
+        params: { blockhash: hash, verbosity: 2 }
+    };
+    
+    try {
+        const response = await axios.post(`http://${btc_rpc_host}:${btc_rpc_port}/`, body, {
+            auth: {
+                username: btc_rpc_user,
+                password: btc_rpc_password,
+            },
+        });
+        
+        if (response && response.data) {
+            // console.log("blockhash: " + JSON.stringify(response.data, null, 2));
+            // console.log("size: " + response.data.result.size);
+            if ( response.data.result && response.data.result.tx ) {
+                const txs = response.data.result.tx;
+                // console.log("txs: " + typeof txs);
+                if (Array.isArray(txs)) {
+                    // console.log("isArray");
+                    return(txs[txidx]);
+                } else {
+                    console.log("NOT isArray");
+                    return(null);
+                }
+            } else {
+                console.log("Invalid response has no transactions.");
+                return null;
+            }
+        } else {
+            console.log("Invalid response received");
+            return null;
+        }
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            console.log("Axios Error Response:", error.response?.data);
+        } else {
+            console.log("Error Message:", (error as Error).message);
+        }
+        return null;
+    }
+};
+
+
 
 const GetUTXOs4addr = async (hash: string, fund_addr: string) => {
     const body = {
@@ -521,50 +612,31 @@ const wait4funds = async (funding_addr: string, satoshis_needed: number) => {
     }
 }
 
-// const listUnspent = async (addr: string) => {
-//     const body = {
-//         jsonrpc: "1.0",
-//         id: null,
-//         method: "listunspent",
-//         params: { 
-//             minconf: 1, 
-//             // maxconf: 9999999, 
-//             addresses: [ addr ],
-//             include_unsafe: true 
-//         }
-//     };
+const wait4conf = async (funding_addr: string, satoshis_needed: number) => {
 
-//     console.log("params: " + JSON.stringify(body,null,2));
-    
-//     try {
-//         const response = await axios.post(`http://${btc_rpc_host}:${btc_rpc_port}/`, body, {
-//             auth: {
-//                 username: btc_rpc_user,
-//                 password: btc_rpc_password,
-//             },
-//         });
-        
-//         if (response && response.data) {
-//             console.log("utxos: " + JSON.stringify(response.data, null, 2));
-//             return response.data;
-//         } else {
-//             console.log("Invalid response received");
-//             return null;
-//         }
-//     } catch (error) {
-//         if (error.response) {
-//             console.log("Error Response:", error.response.data);
-//             return null;
-//         } else if (error.request) {
-//             console.log("Request Error:", error.request);
-//             return null;
-//         } else {
-//             console.log("Error Message:", error.message);
-//             return null;
-//         }
-//     }
-// };
+    // const utxos = await listUnspent(addr);
 
+
+    const sleep_interval = 1 * 60 * 1000; // 60 seconds = 1min
+    const iterations = blocks_to_wait * 10; // approx 120 mins
+    var satoshis_found = 0;
+    var show_once = false;
+    for (var i=0; i<iterations; i++ ) {
+        // if satashi balance < required then wait 2 mins and try again max 1 hour
+        satoshis_found = await scan4utxos(funding_addr);
+        if (satoshis_found >= satoshis_needed ) { 
+            return satoshis_found; 
+        }
+        else {
+            if(!show_once) { 
+                console.log("\n Waiting for next confirmed block... <Ctrl-C to abort>                                                                       \n");
+                show_once = true;
+            }
+            process.stdout.write(" Block " + config.last_scan_block + " : Waiting up to " + (iterations-i) + " mins for " + satoshis_needed + " sats at addr: " + funding_addr + "\r");
+            await sleep(sleep_interval);
+        }
+    }
+}
 
 const GetBlockchainInfo = async () => {
     const body = {
@@ -651,6 +723,12 @@ export interface FeeEst {
     blocks: number;
 }
 
+export interface didUTXO {
+    txid: Buffer;
+    index: number;
+    value: number;
+};
+
 const GetFeeEstimates = async (target_blocks: number): Promise<FeeEst> => {
 
     // const tx4est = "01000000000101b02aa692bfb952614c9224c0b7debd432b5ccc5564fe515aa5eac377903302fb0000000000ffffffff030000000000000000286a2664696403ed01fffb32f3e3756160c48fa1f74f7d7651aea38d30a6a6e2f759fd7f423d4338e84a010000000000002251202243bb457ab73009ec574fd3b153461c5ed8125d265f6196497317260ee9fed0067a0000000000001600149eec719066d33271f1e88235246609c348603be00140fd76eea93b02df04ab21892a3a5437864ab7f2a0d4a88c994c2f57998431c14fcac7eabab665144eef6856226bea020d52d19e6ce8f35e26df0520db48d218bb00000000";
@@ -684,6 +762,39 @@ const GetFeeEstimates = async (target_blocks: number): Promise<FeeEst> => {
 
 }
 
+const BroadcastTransaction = async (rawtxhex: string): Promise<string> => {
+    var hash = null;
+    const body = {
+        jsonrpc: "1.0",
+        id: "curltest",
+        method: "sendrawtransaction",
+        params: [rawtxhex]
+    };
+    
+    try {
+        const response = await axios.post(`http://${btc_rpc_host}:${btc_rpc_port}/`, body, {
+            auth: {
+                username: btc_rpc_user,
+                password: btc_rpc_password,
+            },
+        });
+        
+        if (response && response.data) {
+            // console.log("blockhash: " + JSON.stringify(response.data, null, 2));
+            return response.data.result;
+        } else {
+            console.log("Invalid response received");
+            return (null as unknown as string);
+        }
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            console.log("Axios Error Response:", error.response?.data);
+        } else {
+            console.log("Error Message:", (error as Error).message);
+        }
+        return (null as unknown as string);
+    }
+};
 
 function tweakSigner(signer: Signer, opts: any = {}): Signer {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -1014,87 +1125,270 @@ async function doSwitchStage(stage: string) {
 
         break;
 
-        // case STAGE_ENUM.FORGE_DID_TX:
-        //     console.log("STAGE FORGE_DID_TX");
+        case STAGE_ENUM.FORGE_DID_TX:
+            console.log("STAGE FORGE_DID_TX");
 
-        //     const verificationRelationshipFlags = VerificationRelationshipFlags.AUTHENTICATION | VerificationRelationshipFlags.ASSERTION; // flags to indicate that this public key can be used for authentication and assertion
-        //     var satsPerVByte = 17; // the fee rate in satoshis per vbyte, this can be fetched from a fee estimation service or API
-        //     satsPerVByte = 3; // the fee rate in satoshis per vbyte, this can be fetched from a fee estimation service or API
+            // /**
+            //  * A verification relationship expresses the relationship between the DID subject and a
+            //  * verification method. Each flag corresponds to a bit, and the set of flags form a byte
+            //  * to represent the active verification relationships for a verification method.
+            //  * @see https://www.w3.org/TR/did-core/#verification-relationships
+            //  */
+            // export declare enum VerificationRelationshipFlags {
+            //     /** The authentication verification relationship is used to specify how the DID subject is
+            //      * expected to be authenticated, for purposes such as logging into a website or engaging in
+            //      * any sort of challenge-response protocol. */
+            //     AUTHENTICATION = 1,
+            //     /** The assertionMethod verification relationship is used to specify how the DID subject is
+            //      * expected to express claims, such as for the purposes of issuing a Verifiable Credential */
+            //     ASSERTION = 2,
+            //     /** The keyAgreement verification relationship is used to specify how an entity can generate
+            //      * encryption material in order to transmit confidential information intended for the DID subject,
+            //      * such as for the purposes of establishing a secure communication channel with the recipient. */
+            //     KEY_AGREEMENT = 4,
+            //     /** The capabilityInvocation verification relationship is used to specify a verification method
+            //      * that might be used by the DID subject to invoke a cryptographic capability, such as the
+            //      * authorization to update the DID Document. */
+            //     CAPABILITY_INVOCATION = 8,
+            //     /** The capabilityDelegation verification relationship is used to specify a mechanism that might
+            //      * be used by the DID subject to delegate a cryptographic capability to another party, such as
+            //      * delegating the authority to access a specific HTTP API to a subordinate. */
+            //     CAPABILITY_DELEGATION = 16
+            // }
+
+            // https://www.w3.org/TR/did-core/#dfn-verification-method
+            // verification method
+            // A set of parameters that can be used together with a process to independently verify a proof. 
+            // For example, a cryptographic public key can be used as a verification method with respect to a digital signature; 
+            // in such usage, it verifies that the signer possessed the associated cryptographic private key.
+
+
+            const verificationRelationshipFlags = VerificationRelationshipFlags.AUTHENTICATION | VerificationRelationshipFlags.ASSERTION; // flags to indicate that this public key can be used for authentication and assertion
+            var satsPerVByte = 17; // the fee rate in satoshis per vbyte, this can be fetched from a fee estimation service or API
+            satsPerVByte = 3; // the fee rate in satoshis per vbyte, this can be fetched from a fee estimation service or API
             
-        //     // const { txHex } = buildDidCreationTransaction( {
-        //     //     multikey,
-        //     //     walletUtxos: [{ utxo, privkey }],
-        //     //     verificationRelationshipFlags,
-        //     //     satsPerVByte,
-        //     // } );
+            // const { txHex } = buildDidCreationTransaction( {
+            //     multikey,
+            //     walletUtxos: [{ utxo, privkey }],
+            //     verificationRelationshipFlags,
+            //     satsPerVByte,
+            // } );
             
-        //     console.log("utxopath:  " + utxopath);
+            console.log("utxopath:  " + utxopath);
                         
-        //     child1 = root.derivePath(utxopath);
-        //     const child1Prv = child1.privateKey?.toString('base64');
+            child1 = root.derivePath(utxopath);
+            const child1Prv = child1.privateKey?.toString('base64');
+
+            console.log("child1Prv: " + child1Prv);
+
+            var utxo: Utxo = {
+                txid: Buffer.from(
+                  '48452f42ac0accd63a0467f7e0406945320061bd19971bf34478582d76e85dbe',
+                  'hex',
+                ),
+                index: 1,
+                value: 4131295,
+            };
+
+            // var utxo: didUTXO;
+            var uint8 = new Uint8Array(2);
+            var wutxo:WalletUtxo = { utxo, privkey: uint8};
+            // var wutxos!:WalletUtxo[]; // Adding !before variable tells typescript to remove undefined or null as possibles types for variable:
+            // var wutxos:WalletUtxo[]; 
+            // let wutxos: Array<WalletUtxo> = new Array();
+            let wutxos: WalletUtxo[] = [];
+            
+            // (wutxos[0]).privkey = Buffer.from('aaa','hex');
+
+            utxo.index = 0;
+
+            const txs = config.transactions;
+            var tx;
+            var vouts = [];
+            var vout;
+            for (var i=0; i<txs.length; i++) {
+                tx = txs[i];
+                vouts = tx.vout;
+                for (var n=0; n<vouts.length; n++) {
+                    vout = vouts[n];
+                    if (vout.scriptPubKey && 
+                        vout.scriptPubKey.address && 
+                        (vout.scriptPubKey.address == config.fundingAddr)) {
+
+                        utxo.index = vout.n;
+                        utxo.value = (vout.value * 100000000);
+                        utxo.txid = tx.txid;
+
+                        utxopath = rootpath + "/0/"+(utxo.index).toString();
+
+                        console.log("utxopath:  " + utxopath);
+                        
+                        child1 = root.derivePath(utxopath);
+
+                        if (child1 && child1.privateKey) {
+                            const child1Prv = child1.privateKey.toString('base64');
+
+                            console.log("child1Prv: " + child1Prv);
+
+                            wutxo.privkey = child1.privateKey;
+                            wutxo.utxo = utxo;
+                            // console.log("wutxo:" + JSON.stringify(wutxo,null,2));
+                            wutxos.push(wutxo);
+                        }
+                    }
+                }
+            }
+
+            console.log("utxos: \n" + JSON.stringify(wutxos,null,2) );
+            
+            // export type WalletUtxo = {
+            //     /**
+            //      * A reference to the unspent transaction output (UTXO) to be spent for this transaction. This
+            //      * must be a pay-to-taproot (P2TR) output whose internal public key corresponds to the private key
+            //      * provided.
+            //      * @see https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#user-content-Taproot_key_path_spending_signature_validation
+            //      */
+            //     utxo: Utxo;
+            //     /**
+            //      * A 32 byte private key that corresponds to the internal public key of the UTXO being spent and
+            //      * can therefore be used to produce a valid signature for the transaction.
+            //      */
+            //     privkey: Uint8Array;
+            // };
             
 
-        //     console.log("child1Prv: " + child1Prv);
-
-        //     var utxo = {
-        //         txid: Buffer.from(
-        //           '48452f42ac0accd63a0467f7e0406945320061bd19971bf34478582d76e85dbe',
-        //           'hex',
-        //         ),
-        //         index: 1,
-        //         value: 4131295,
-        //     };
-
-        //     var utxos = [];
-
-        //     const txs = config.transactions;
-        //     var tx = {};
-        //     var vouts = [];
-        //     var vout = {};
-        //     for (var i=0; i<txs.length; i++) {
-        //         tx = txs[i];
-        //         vouts = tx.vout;
-        //         for (var n=0; n<vouts.length; n++) {
-        //             vout = vouts[n];
-        //             if (vout.scriptPubKey && 
-        //                 vout.scriptPubKey.address && 
-        //                 (vout.scriptPubKey.address == config.fundingAddr)) {
-
-        //                 utxo.index = vout.n;
-        //                 utxo.value = (vout.value * 100000000);
-        //                 utxo.txid = tx.txid;
-        //                 utxos.push({ utxo: utxo, privkey: root.privateKey });
-        //             }
-        //         }
-        //     }
-
-        //     console.log("utxos: \n" + JSON.stringify(utxos,null,2) );
+            // DidCreationParams
+            const transaction = buildDidCreationTransaction({
+                multikey: encoding.prependCodecToKey(config.ed25519PubKey, 'ed25519-pub'),
+                walletUtxos: wutxos,
+                satsPerVByte: config.satsPerVByte,
+                network: didnetwork,
+                changeAddress: config.changeAddr,
+                // didOutput, 
+                didSats: 330,
+                verificationRelationshipFlags: verificationRelationshipFlags
+            });
             
-        //     // DidCreationParams
-        //     const transaction = buildDidCreationTransaction({
-        //         multikey: prependCodecToKey(config.ed25519PubKey, 'ed25519-pub'),
-        //         walletUtxos: utxos,
-        //         satsPerVByte: config.satsPerVByte,
-        //         network: network,
-        //         changeAddress: config.changeAddr,
-        //         // didOutput, 
-        //         didSats: 330,
-        //         verificationRelationshipFlags: verificationRelationshipFlags
-        //     });
-            
-        //     console.log("\nbitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV sendrawtransaction " + transaction.txHex);
-        //     console.log("\nbitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV decoderawtransaction " + transaction.txHex);
+            console.log("\nbitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV sendrawtransaction " + transaction.txHex);
+            console.log("\nbitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV decoderawtransaction " + transaction.txHex);
 
-        //     yes_continue = await confirm({ message: 'Continue?' });
-        //     if (!yes_continue) {
-        //         process.exit(1);
-        //     } else {
-        //         config.stage = STAGE_ENUM.ALL_FINISHED;
-        //         await setJSONconfig(JSON.stringify( config, null, 2 ));
-        //         doSwitchStage(config.stage);
-        //     }
+            yes_continue = await confirm({ message: 'Continue?' });
+            if (!yes_continue) {
+                process.exit(1);
+            } else {
+                config["did_create_tx_hex"] = transaction.txHex;
+                config.stage = STAGE_ENUM.BROADCAST_TX;
+                await setJSONconfig(JSON.stringify( config, null, 2 ));
+                doSwitchStage(config.stage);
+            }
 
-        // break;
+        break;
+
+        case STAGE_ENUM.BROADCAST_TX:
+            console.log("STAGE BROADCAST_TX");
+
+            console.log("txhex: " + config.did_create_tx_hex);
+
+            yes_continue = await confirm({ message: 'Broadcast DID Create Transaction?' });
+            if (!yes_continue) {
+                process.exit(1);
+            } else {
+                const did_create_tx = await BroadcastTransaction(config.did_create_tx_hex);
+
+                console.log("tx: " + did_create_tx);
+
+                config.stage = STAGE_ENUM.WAIT_FOR_CONF;
+                await setJSONconfig(JSON.stringify( config, null, 2 ));
+                doSwitchStage(config.stage);
+            }
+
+        break;
+
+        case STAGE_ENUM.WAIT_FOR_CONF:
+            console.log("STAGE WAIT_FOR_CONF");
+
+            // const satoshis_found = await wait4funds(config.fundingAddr,additional_needed);
+
+            const blockheight = 2874198;
+            const blockindex = 3085;
+
+            yes_continue = await confirm({ message: 'Continue?' });
+            if (!yes_continue) {
+                // process.exit(1);
+            } else {
+
+                const didId = encodeDidBtc({
+                    network: didnetwork,
+                    blockHeight: blockheight,
+                    txIndex: blockindex
+                });
+
+                console.log("didId:" + didId); // did:btc:rqy3-8qmr-q4f4-z9z
+
+                config["create_blockheight"] = blockheight;
+                config["create_blockindex"] = blockindex;
+                config["didId"] = didId;
+
+                config.stage = STAGE_ENUM.VERIFY_DID;
+                await setJSONconfig(JSON.stringify( config, null, 2 ));
+                doSwitchStage(config.stage);
+            }
+
+        break;
+
+        case STAGE_ENUM.VERIFY_DID:
+            console.log("STAGE VERIFY_DID");
+            console.log("testnet sample did: " + "did:btc:test:8q7p-v92k-prqq-7s2k-6a");
+
+            const exampleDidId = await input({ message: 'Verify DidId: ', default: config.didId as string });
+
+            // const satoshis_found = await wait4funds(config.fundingAddr,additional_needed);
+            const decodedDidId: DidBtcIdentifier = decodeDidBtc(exampleDidId);
+            console.log(":" + JSON.stringify(decodedDidId,null,2));
+            // {
+            //   network: 'mainnet',
+            //   blockHeight: 123456,
+            //   txIndex: 123,
+            //   didIndex: 1,
+            // }
+            const didIndex = decodedDidId.didIndex;
+
+            if (typeof didIndex !== 'undefined') {
+                const blockHash = await GetBlockHash(decodedDidId.blockHeight);
+                // console.log("blockHash:" + blockHash);
+                const tx = await GetTransactionAtIndex(blockHash, decodedDidId.txIndex);
+                // console.log("tx: " + JSON.stringify(tx,null,2));
+                // const result = await GetTransaction(blockHash);
+                // GetTransaction();
+                let txHex; // the transaction hex fetched from the blockchain using the decoded DID
+                let updateTxHex; // the transaction hex of an update reveal transaction, if one exists
+
+                // const did: Did = resolveDidBtc([txHex, updateTxHex], didIndex);
+                if (typeof decodedDidId.didIndex !== 'undefined') {
+                    const did: Did = resolveDidBtc([tx.hex], decodedDidId.didIndex);
+                    // console.log("did: " + JSON.stringify(did,null,2));
+
+                    const didDocument: DidDocument = buildDidDocument(did, exampleDidId);
+                    console.log("didDocument: " + JSON.stringify(didDocument,null,2));
+                } else {
+                    console.log("No didIndex.");
+                    process.exit(1);
+                }
+            } else {
+                console.log("Couldn't decode decodedDidId.");
+                process.exit(1);
+            }
+
+            yes_continue = await confirm({ message: 'Continue?' });
+            if (!yes_continue) {
+                process.exit(1);
+            } else {
+                config.stage = STAGE_ENUM.ALL_FINISHED;
+                await setJSONconfig(JSON.stringify( config, null, 2 ));
+                doSwitchStage(config.stage);
+            }
+
+        break;
 
         case STAGE_ENUM.ALL_FINISHED:
             console.log("STAGE ALL_FINISHED");
