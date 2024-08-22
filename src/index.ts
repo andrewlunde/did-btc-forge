@@ -21,7 +21,7 @@ import {
 //     encodeMultibase,
 //     encodeMultikey,
 //     prependCodecToKey,
-} from '@horologger/did-btc-sdk';
+} from 'did-btc-sdk';
 
 // const verificationRelationshipFlags = VerificationRelationshipFlags.AUTHENTICATION | VerificationRelationshipFlags.ASSERTION; // flags to indicate that this public key can be used for authentication and assertion
 
@@ -1370,6 +1370,22 @@ async function doSwitchStage(stage: string) {
 
                     const didDocument: DidDocument = buildDidDocument(did, exampleDidId);
                     console.log("didDocument: " + JSON.stringify(didDocument,null,2));
+                    // if (didDocument && didDocument.controller && didDocument.verificationMethod && didDocument.verificationMethod[0].publicKeyMultibase) {
+
+                    //     const epk = encoding.prependCodecToKey(config.ed25519PubKey, 'ed25519-pub');
+
+                    //     // const conr = didDocument.controller;
+                    //     const conr = "z6DtRpbEAfCqmG8vMqTKofDubR951CWghtS2ZMK7vkoofDQa";
+                    //     const dconr: Uint8Array = encoding.decodeMultibase(conr);
+                    //     console.log(Buffer.from(dconr).toString('ascii'));
+
+                    //     const pkmb = didDocument.verificationMethod[0].publicKeyMultibase;
+                    //     console.log("pkmb: " + pkmb);
+                    //     const dpk: encoding.DecodedKey = encoding.decodeMultikey(pkmb);
+
+                    //     // console.log("dpk: " + encoding.dpk.bytes));
+                    //     console.log(dpk.codecName);
+                    // }
                 } else {
                     console.log("No didIndex.");
                     process.exit(1);
@@ -1410,6 +1426,10 @@ async function doSwitchStage(stage: string) {
         default:
         console.log("DEFAULT", config.stage == STAGE_ENUM.UNKNOWN);
     }
+}
+
+function toHex(buffer: Uint8Array) {
+    return Array.prototype.map.call(buffer, x => ('00' + x.toString(16)).slice(-2)).join('');
 }
 
 doSwitchStage(config.stage);

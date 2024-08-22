@@ -1,4 +1,4 @@
-import { VerificationRelationshipFlags, buildDidCreationTransaction, buildDidDocument, decodeDidBtc, encodeDidBtc, resolveDidBtc, encoding } from '@horologger/did-btc-sdk';
+import { VerificationRelationshipFlags, buildDidCreationTransaction, buildDidDocument, decodeDidBtc, encodeDidBtc, resolveDidBtc, encoding } from 'did-btc-sdk';
 // const verificationRelationshipFlags = VerificationRelationshipFlags.AUTHENTICATION | VerificationRelationshipFlags.ASSERTION; // flags to indicate that this public key can be used for authentication and assertion
 import { initEccLib, networks, payments, crypto } from "bitcoinjs-lib";
 import { ECPairFactory } from 'ecpair';
@@ -1158,6 +1158,17 @@ async function doSwitchStage(stage) {
                     // console.log("did: " + JSON.stringify(did,null,2));
                     const didDocument = buildDidDocument(did, exampleDidId);
                     console.log("didDocument: " + JSON.stringify(didDocument, null, 2));
+                    if (didDocument && didDocument.controller && didDocument.verificationMethod && didDocument.verificationMethod[0].publicKeyMultibase) {
+                        // const conr = didDocument.controller;
+                        const conr = "z6DtRpbEAfCqmG8vMqTKofDubR951CWghtS2ZMK7vkoofDQa";
+                        const dconr = encoding.decodeMultibase(conr);
+                        console.log(Buffer.from(dconr).toString('ascii'));
+                        const pkmb = didDocument.verificationMethod[0].publicKeyMultibase;
+                        console.log("pkmb: " + pkmb);
+                        const dpk = encoding.decodeMultikey(pkmb);
+                        // console.log("dpk: " + encoding.dpk.bytes));
+                        console.log(dpk.codecName);
+                    }
                 }
                 else {
                     console.log("No didIndex.");
@@ -1197,5 +1208,8 @@ async function doSwitchStage(stage) {
         default:
             console.log("DEFAULT", config.stage == STAGE_ENUM.UNKNOWN);
     }
+}
+function toHex(buffer) {
+    return Array.prototype.map.call(buffer, x => ('00' + x.toString(16)).slice(-2)).join('');
 }
 doSwitchStage(config.stage);
