@@ -109,7 +109,7 @@ if (btc_rpc_network == 'testnet') {
 
 } else if (btc_rpc_network == 'mainnet') {
     network = networks.bitcoin; //use bitcoin.networks.testnet for testnet
-    didnetwork = 'testnet';
+    didnetwork = 'mainnet';
     addr_prefix = "bc1"; // MainNet Addresses
     rootpath = "m/86'/0'/0'"; // Mainnet
     utxopath = rootpath + "/0/"+index.toString();
