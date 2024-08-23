@@ -1176,12 +1176,12 @@ async function doSwitchStage(stage: string) {
             //     satsPerVByte,
             // } );
             
-            console.log("utxopath:  " + utxopath);
+            // console.log("utxopath:  " + utxopath);
                         
             child1 = root.derivePath(utxopath);
-            const child1Prv = child1.privateKey?.toString('base64');
+            // const child1Prv = child1.privateKey?.toString('base64');
 
-            console.log("child1Prv: " + child1Prv);
+            // console.log("child1Prv: " + child1Prv);
 
             var utxo: Utxo = {
                 txid: Buffer.from(
@@ -1251,8 +1251,8 @@ async function doSwitchStage(stage: string) {
                 console.log("utxo.index: " + wutxo.utxo.index);
                 console.log("utxo.value: " + wutxo.utxo.value);
                 console.log(" utxo.txid: " + wutxo.utxo.txid);
-                let pk = wutxo.privkey;
-                console.log("   privkey: " + pk.toString());
+                // let pk = wutxo.privkey;
+                // console.log("   privkey: " + pk.toString());
             } 
             
             // export type WalletUtxo = {
