@@ -99,6 +99,7 @@ var addr_prefix = "tb1"; // TestNet Addresses
 var index = 0;
 var rootpath = "m/86'/1'/0'"; // 86 = Taproot : 1 = Testnet3 
 var utxopath = rootpath + "/0/"+index.toString();
+var bitcoincli = "bitcoin-cli ";
 
 if (btc_rpc_network == 'testnet') {
     network = networks.testnet; //use bitcoin.networks.testnet for testnet
@@ -106,6 +107,7 @@ if (btc_rpc_network == 'testnet') {
     addr_prefix = "tb1"; // TestNet Addresses
     rootpath = "m/86'/1'/0'"; // Testnet3
     utxopath = rootpath + "/0/"+index.toString();
+    bitcoincli = "bitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV ";
 
 } else if (btc_rpc_network == 'mainnet') {
     network = networks.bitcoin; //use bitcoin.networks.testnet for testnet
@@ -1280,8 +1282,8 @@ async function doSwitchStage(stage: string) {
                 verificationRelationshipFlags: verificationRelationshipFlags
             });
             
-            console.log("\nbitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV sendrawtransaction " + transaction.txHex);
-            console.log("\nbitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV decoderawtransaction " + transaction.txHex);
+            console.log("\n" + bitcoincli + "decoderawtransaction " + transaction.txHex);
+            console.log("\n" + bitcoincli + "sendrawtransaction " + transaction.txHex);
 
             yes_continue = await confirm({ message: 'Continue?' });
             if (!yes_continue) {
