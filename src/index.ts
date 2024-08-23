@@ -191,7 +191,7 @@ if (!config) {
     console.log("mnemonic: \n\n" + mnemonic + "\n");
 
     if (validateMnemonic(mnemonic)) {
-        console.log("mnemonic is valid.  Please write down the above sequence of words.");
+        console.log("mnemonic is valid.  Please write down the above sequence of words.\n");
     } else {
         console.log("mnemonic is NOT valid");
     }
