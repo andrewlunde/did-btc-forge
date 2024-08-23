@@ -181,17 +181,17 @@ const STAGE_ENUM = {
 
 
 if (!config) {
-    console.log("No existing config found.  Generating new mnemonic.");
+    console.log("No existing config found, creating a new one.  \nGenerating new mnemonic.");
 
     // const mnemonic = generateMnemonic();
     const mnemonic = 'same move resemble game system settle vicious zebra please swamp fitness good';
 
 
 
-    console.log("mnemonic: " + mnemonic);
+    console.log("mnemonic: \n" + mnemonic);
 
     if (validateMnemonic(mnemonic)) {
-        console.log("mnemonic is valid");
+        console.log("mnemonic is valid.  Please write down the above sequence of words.");
     } else {
         console.log("mnemonic is NOT valid");
     }
