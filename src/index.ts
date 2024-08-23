@@ -1239,7 +1239,18 @@ async function doSwitchStage(stage: string) {
                 }
             }
 
-            console.log("utxos: \n" + JSON.stringify(wutxos,null,2) );
+            // console.log("utxos: \n" + JSON.stringify(wutxos,null,2) );
+
+            for (var n=0; n<wutxos.length; n++) {
+                wutxo = wutxos[n];
+                console.log("wutxo[" + n + "]:");
+                
+                console.log("utxo.index: " + wutxo.utxo.index);
+                console.log("utxo.value: " + wutxo.utxo.value);
+                console.log(" utxo.txid: " + wutxo.utxo.txid);
+                let pk = wutxo.privkey;
+                console.log("   privkey: " + pk.toString());
+            } 
             
             // export type WalletUtxo = {
             //     /**
