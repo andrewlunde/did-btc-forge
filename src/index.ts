@@ -188,7 +188,7 @@ if (!config) {
 
 
 
-    console.log("mnemonic: \n" + mnemonic);
+    console.log("mnemonic: \n\n" + mnemonic + "\n");
 
     if (validateMnemonic(mnemonic)) {
         console.log("mnemonic is valid.  Please write down the above sequence of words.");
@@ -206,7 +206,7 @@ if (!config) {
     const wifMaster = root.toWIF();
     console.log("wifMaster: " + wifMaster);
     
-    console.log("It will never be shown to you again.");
+    console.log("\nIt will never be shown to you again.");
     console.log("You will need it to recover funds.");
 
     const yes_continue = await confirm({ message: 'Continue?' });
