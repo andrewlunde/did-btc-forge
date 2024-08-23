@@ -96,9 +96,9 @@ if (process.env.BTC_RPC_PORT === undefined) { console.log("Missing BTC_RPC_PORT"
 var network = networks.testnet; // was networkk use bitcoin.networks.testnet for testnet
 var didnetwork: Network = 'testnet'; // was network
 var addr_prefix = "tb1"; // TestNet Addresses
-var index = 0;
+var funding_index = 0;
 var rootpath = "m/86'/1'/0'"; // 86 = Taproot : 1 = Testnet3 
-var utxopath = rootpath + "/0/"+index.toString();
+var utxopath = rootpath + "/0/"+funding_index.toString();
 var bitcoincli = "bitcoin-cli ";
 
 if (btc_rpc_network == 'testnet') {
@@ -106,7 +106,7 @@ if (btc_rpc_network == 'testnet') {
     didnetwork = 'testnet';
     addr_prefix = "tb1"; // TestNet Addresses
     rootpath = "m/86'/1'/0'"; // Testnet3
-    utxopath = rootpath + "/0/"+index.toString();
+    utxopath = rootpath + "/0/"+funding_index.toString();
     bitcoincli = "bitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV ";
 
 } else if (btc_rpc_network == 'mainnet') {
@@ -114,7 +114,7 @@ if (btc_rpc_network == 'testnet') {
     didnetwork = 'mainnet';
     addr_prefix = "bc1"; // MainNet Addresses
     rootpath = "m/86'/0'/0'"; // Mainnet
-    utxopath = rootpath + "/0/"+index.toString();
+    utxopath = rootpath + "/0/"+funding_index.toString();
 
 } else {
     console.log("Unsupported network: " + btc_rpc_network);
@@ -247,7 +247,7 @@ const blocks_to_confirm = 6; // Look back x for confirmed transactions
 const conf_target = 8; // Blocks for fee estimation
 const blocks_to_wait = blocks_to_confirm + 2; // Blocks wait for funds
                     
-utxopath = rootpath + "/0/"+index.toString();
+utxopath = rootpath + "/0/"+funding_index.toString();
 var child1: BIP32Interface = root.derivePath(utxopath);
 
 var privkey = child1.privateKey;
@@ -1080,7 +1080,7 @@ async function doSwitchStage(stage: string) {
             // Also at the project taproot-with0-bitcoinjs 
 
             console.log("  [✔] Funding Address Genereated");
-            console.log("    Address ["+ index +"] -> "+ fundingAddressString);
+            console.log("    Address ["+ funding_index +"] -> "+ fundingAddressString);
 
             config["fundingAddr"] = fundingAddressString;
             // config["spendingPrv"] = child1.privateKey;
@@ -1211,6 +1211,13 @@ async function doSwitchStage(stage: string) {
             for (var i=0; i<txs.length; i++) {
                 tx = txs[i];
                 vouts = tx.vout;
+
+                utxopath = rootpath + "/0/"+(funding_index).toString();    // At this time we are only spending from the funding index
+
+                console.log("utxopath:  " + utxopath);
+                
+                child1 = root.derivePath(utxopath);
+
                 for (var n=0; n<vouts.length; n++) {
                     vout = vouts[n];
                     if (vout.scriptPubKey && 
@@ -1220,12 +1227,6 @@ async function doSwitchStage(stage: string) {
                         utxo.index = vout.n;
                         utxo.value = (vout.value * 100000000);
                         utxo.txid = tx.txid;
-
-                        utxopath = rootpath + "/0/"+(utxo.index).toString();
-
-                        console.log("utxopath:  " + utxopath);
-                        
-                        child1 = root.derivePath(utxopath);
 
                         if (child1 && child1.privateKey) {
                             const child1Prv = child1.privateKey.toString('base64');
