@@ -584,6 +584,109 @@ const scan4utxos = async (funding_addr: string) => {
     return satoshis_found;
 }
 
+const GetConf4Tx = async (hash: string, conf_tx: string): Promise<{ blockheight: number, blockindex: number, blockconfs: number }>  => {
+    const body = {
+        jsonrpc: "1.0",
+        id: "curltest",
+        method: "getblock",
+        params: { blockhash: hash, verbosity: 1 }
+    };
+    
+    var tx_index = 0;
+    var tx_confs = 0;
+    var tx_height = 0;
+
+    try {
+        const response = await axios.post(`http://${btc_rpc_host}:${btc_rpc_port}/`, body, {
+            auth: {
+                username: btc_rpc_user,
+                password: btc_rpc_password,
+            },
+        });
+        
+        if (response && response.data) {
+            // console.log("blockhash: " + JSON.stringify(response.data, null, 2));
+            // console.log("size: " + response.data.result.size);
+            var txs = response.data.result.tx;
+            tx_confs = response.data.result.confirmations;
+            tx_height = response.data.result.height;
+            var tx = null;
+            var tx_found = false;
+            for(var i=0; i<txs.length; i++) {
+                tx = txs[i];
+                // console.log("tx: " + JSON.stringify(tx,null,2));
+                if (tx.hash == conf_tx) {
+                    tx_found = true;
+                    tx_index = i;
+                }
+            }
+            if (tx_found) {
+                return( { blockheight: tx_height, blockindex: tx_index, blockconfs: tx_confs } );
+            } else {
+                return( { blockheight: 0, blockindex: 0, blockconfs: 0 } );
+            }
+        } else {
+            console.log("Invalid response received");
+            return( { blockheight: 0, blockindex: 0, blockconfs: 0 } );
+        }
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            console.log("Axios Error Response:", error.response?.data);
+        } else {
+            console.log("Error Message:", (error as Error).message);
+        }
+        return( { blockheight: 0, blockindex: 0, blockconfs: 0 } );
+    }
+};
+
+const scan4conf = async (tx: string, blocks: number): Promise<{ blockheight: number, blockindex: number , tx_confs: number }> => {
+
+    var blockheight_found = 0;
+    var blockindex_found = 0;
+    var tx_confs = 0;
+    // var satoshis_found = config.satoshis_found;
+    var hash = "";
+    var vouts = null;
+    var vout = null;
+    var value = 0.0;
+    var addr = "";
+    var spk = null;
+
+    // Get the current_block
+    var current_block = await GetCurrentBlock();
+    current_block -= blocks_to_confirm;  // Look back for confirmations
+    // Get the last_scanned from config
+    const last_scan_block = config.last_scan_block;
+    // if current_block > last_scanned
+    if (current_block > last_scan_block) {
+
+        // for each of last_scanned + 1 to current_block
+        for (var block = last_scan_block; block <= current_block; block++) {
+            console.log("Scanning block: " + block + " -> " + current_block);
+            process.stdout.write(".");
+        //   get the block hash
+            hash = await GetBlockHash(block);
+            // console.log("block hash: " + hash);
+
+            //   get the block transactions
+            const conf_result = await GetConf4Tx(hash,tx);
+            if ((conf_result.blockconfs != 0) && (conf_result.blockheight != 0) && (conf_result.blockindex != 0)) {
+                blockheight_found = conf_result.blockheight;
+                blockindex_found = conf_result.blockindex;
+                tx_confs = conf_result.blockconfs;
+                break;
+            }
+        }
+
+        // resave config with new last_scanned and array
+        // console.log("Updating config...");
+        config.last_scan_block = current_block;
+        await setJSONconfig(JSON.stringify( config, null, 2 ));
+    }
+    // return that the needed confirmations were found
+    return( {"blockheight": blockheight_found, "blockindex": blockindex_found,  "tx_confs": tx_confs} );
+}
+
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -614,30 +717,31 @@ const wait4funds = async (funding_addr: string, satoshis_needed: number) => {
     }
 }
 
-const wait4conf = async (funding_addr: string, satoshis_needed: number) => {
+const wait4conf = async (tx: string, blocks: number): Promise<{ blockheight: number, blockindex: number }> => {
 
     // const utxos = await listUnspent(addr);
 
 
     const sleep_interval = 1 * 60 * 1000; // 60 seconds = 1min
     const iterations = blocks_to_wait * 10; // approx 120 mins
-    var satoshis_found = 0;
+    var conf_found = false;
     var show_once = false;
     for (var i=0; i<iterations; i++ ) {
         // if satashi balance < required then wait 2 mins and try again max 1 hour
-        satoshis_found = await scan4utxos(funding_addr);
-        if (satoshis_found >= satoshis_needed ) { 
-            return satoshis_found; 
+        const { blockheight, blockindex, tx_confs } = await scan4conf(tx, blocks);
+        if (tx_confs >= blocks) { 
+            return( { blockheight, blockindex } ); 
         }
         else {
             if(!show_once) { 
-                console.log("\n Waiting for next confirmed block... <Ctrl-C to abort>                                                                       \n");
+                console.log("\n Waiting for next block... <Ctrl-C to abort>                                                                       \n");
                 show_once = true;
             }
-            process.stdout.write(" Block " + config.last_scan_block + " : Waiting up to " + (iterations-i) + " mins for " + satoshis_needed + " sats at addr: " + funding_addr + "\r");
+            process.stdout.write(" Block " + config.last_scan_block + " : Waiting up to " + (iterations-i) + " mins for " + blocks + " confirmations of tx: " + tx + "\r");
             await sleep(sleep_interval);
         }
     }
+    return ({ blockheight: 0, blockindex: 0 });
 }
 
 const GetBlockchainInfo = async () => {
@@ -1311,6 +1415,8 @@ async function doSwitchStage(stage: string) {
 
                 console.log("tx: " + did_create_tx);
 
+                config["tx"] = did_create_tx;
+
                 config.stage = STAGE_ENUM.WAIT_FOR_CONF;
                 await setJSONconfig(JSON.stringify( config, null, 2 ));
                 doSwitchStage(config.stage);
@@ -1321,14 +1427,13 @@ async function doSwitchStage(stage: string) {
         case STAGE_ENUM.WAIT_FOR_CONF:
             console.log("STAGE WAIT_FOR_CONF");
 
-            // const satoshis_found = await wait4funds(config.fundingAddr,additional_needed);
+            const { blockheight, blockindex } = await wait4conf(config.tx,blocks_to_confirm);
 
-            const blockheight = 2874198;
-            const blockindex = 3085;
+            console.log("Your Decentralized ID has been confirmed on the " + didnetwork + " blockchain.")
 
             yes_continue = await confirm({ message: 'Continue?' });
             if (!yes_continue) {
-                // process.exit(1);
+                process.exit(1);
             } else {
 
                 const didId = encodeDidBtc({
