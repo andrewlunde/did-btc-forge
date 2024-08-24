@@ -1577,6 +1577,8 @@ async function doSwitchStage(stage: string) {
             if (!yes_continue) {
                 console.log("Complete...");
                 // process.exit(1);
+                config.stage = STAGE_ENUM.CREATE_OR_VERIFY;
+                await setJSONconfig(JSON.stringify( config, null, 2 ));
             } else {
                 config.stage = STAGE_ENUM.FUND_ADDR;
                 config.last_scan_block = config.scan_from_block;
