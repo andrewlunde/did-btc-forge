@@ -1572,7 +1572,8 @@ async function doSwitchStage(stage: string) {
 
         case STAGE_ENUM.ALL_FINISHED:
             console.log("STAGE ALL_FINISHED");
-            yes_continue = await confirm({ message: 'Rescan?' });
+            // yes_continue = await confirm({ message: 'Rescan?' });
+            yes_continue = false;
             if (!yes_continue) {
                 console.log("Complete...");
                 // process.exit(1);
