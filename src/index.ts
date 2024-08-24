@@ -617,11 +617,12 @@ const GetConf4Tx = async (hash: string, conf_tx: string): Promise<{ blockheight:
             var tx_found = false;
             for(var i=0; i<txs.length; i++) {
                 tx = txs[i];
-                // console.log("tx: " + JSON.stringify(tx,null,2));
+                console.log("tx: " + JSON.stringify(tx,null,2));
                 if (tx.hash == conf_tx) {
                     tx_found = true;
                     tx_index = i;
                 }
+                process.exit(1);
             }
             if (tx_found) {
                 return( { blockheight: tx_height, blockindex: tx_index, blockconfs: tx_confs } );
