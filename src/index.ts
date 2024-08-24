@@ -1149,10 +1149,10 @@ async function doSwitchStage(stage: string) {
             currest = await GetFeeEstimates(conf_target);
             console.log("Given the current estimated fee rate of " + currest.estFeeRate + " sats/vB the estimated fee is " + currest.estFee + " sats within " + currest.blocks + " blocks.");
 
-            var choices = [
+            choices = [
                 {
                     name: 'Continue with ' + currest.estFee + ' sats',
-                    value: currest.estFee,
+                    value: currest.estFee.toString(),
                     description: 'Continue to the next stage?',
                 }
             ]
