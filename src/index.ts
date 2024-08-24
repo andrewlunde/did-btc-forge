@@ -954,19 +954,19 @@ async function doSwitchStage(stage: string) {
 
             var choices = [
                 {
-                    name: 'create',
+                    name: 'Create a decentralized ID',
                     value: 'create',
-                    description: 'Create',
+                    description: 'Create a decentralized ID and forge it onto the Bitcoin blockchain.',
                 },
                 {
-                    name: 'verify',
+                    name: 'Verify a decentralized ID',
                     value: 'verify',
-                    description: 'Verify',
+                    description: 'Verify an existing decentralized ID that is the Bitcoin blockchain.',
                 },
                 {
-                    name: 'exit',
+                    name: 'Exit Orange Forge',
                     value: 'exit',
-                    description: 'Exit',
+                    description: 'Exit Orange Forge.  "npm run start" to restart',
                 }
             ]
 
@@ -974,7 +974,6 @@ async function doSwitchStage(stage: string) {
                 message: 'You can create a new Decentralized ID or verify an existing one.',
                 choices: choices
             });
-
     
             if (answer == 'create') {
                 doSwitchStage(STAGE_ENUM.CREATE_CONTINUE);
