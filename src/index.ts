@@ -167,7 +167,8 @@ var satoshis_needed = 5000;
 
 
 const STAGE_ENUM = {
-    INITIAL: "initial",
+    CREATE_OR_VERIFY: "create_or_verify",
+    CREATE_CONTINUE: "create_continue",
     GET_GEN_DID: "get_gen_did",
     EST_DID_TX: "est_did_tx",
     FUND_ADDR: "fund_addr",
@@ -220,7 +221,7 @@ if (!config) {
         mnemonic: mnemonic,
         tprv: tprv,
         wif: wifMaster,
-        stage: STAGE_ENUM.INITIAL
+        stage: STAGE_ENUM.CREATE_CONTINUE
     };
 
     const ok = await setJSONconfig(JSON.stringify( config, null, 2 ));
@@ -948,8 +949,47 @@ async function doSwitchStage(stage: string) {
 
     var yes_continue = false;
     switch (stage) {
-        case STAGE_ENUM.INITIAL:
-            console.log("STAGE INITIAL");
+        case STAGE_ENUM.CREATE_OR_VERIFY:
+            console.log("STAGE CREATE_OR_VERIFY");
+
+            var choices = [
+                {
+                    name: 'create',
+                    value: 'create',
+                    description: 'Create',
+                },
+                {
+                    name: 'verify',
+                    value: 'verify',
+                    description: 'Verify',
+                },
+                {
+                    name: 'exit',
+                    value: 'exit',
+                    description: 'Exit',
+                }
+            ]
+
+            var answer = await select({
+                message: 'You can create a new Decentralized ID or verify an existing one.',
+                choices: choices
+            });
+
+    
+            if (answer == 'create') {
+                doSwitchStage(STAGE_ENUM.CREATE_CONTINUE);
+            } else if (answer == 'verify') {
+                doSwitchStage(STAGE_ENUM.VERIFY_DID);
+            } else if (answer == 'exit') {
+                doSwitchStage(STAGE_ENUM.ALL_FINISHED);
+            } else {
+                process.exit(1);
+            }
+        
+        break;
+
+        case STAGE_ENUM.CREATE_CONTINUE:
+            console.log("STAGE CREATE_CONTINUE");
             console.log("In order to forge a distributed ID approx " + satoshis_needed + " sats be funded to the following address.");
             yes_continue = await confirm({ message: 'Continue?' });
 
@@ -1126,7 +1166,7 @@ async function doSwitchStage(stage: string) {
                 });
             }
 
-            const answer = await select({
+            answer = await select({
                 message: 'Continue or adjust fee.',
                 choices: choices
             });
