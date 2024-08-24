@@ -1161,7 +1161,7 @@ async function doSwitchStage(stage: string) {
                 est = ests[i];
                 choices.push({
                     name: 'Fee ' + est.estFee + " sats in " + est.blocks + " blocks = approx " + ((est.blocks)*10) + " mins = " + (((est.blocks)*10)/60).toFixed(2) + " hours", 
-                    value: est.estFee,
+                    value: est.estFee.toString(),
                     description: 'Select fee rate ' + est.estFeeRate + ' sats/vB = ' + est.estFee + ' sats for confirmation in approx ' + ((est.blocks)*10) + ' minutes'
                 });
             }
@@ -1176,7 +1176,7 @@ async function doSwitchStage(stage: string) {
             config.satsPerVByte = 5;
             for (var i=0; i<ests.length; i++) {
                 est = ests[i];
-                if (answer == est.estFee) {
+                if (answer == est.estFee.toString()) {
                     config.satsPerVByte = est.estFeeRate;
                 }
             }
