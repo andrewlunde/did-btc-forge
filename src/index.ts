@@ -612,7 +612,7 @@ const GetConf4Tx = async (hash: string, conf_tx: string): Promise<{ blockheight:
             tx_height = response.data.result.height;
             console.log("tx_height: " + tx_height);
             console.log("tx_confs: " + tx_confs);
-            process.exit(1);
+
             var tx = null;
             var tx_found = false;
             for(var i=0; i<txs.length; i++) {
