@@ -589,7 +589,7 @@ const GetConf4Tx = async (hash: string, conf_tx: string): Promise<{ blockheight:
         jsonrpc: "1.0",
         id: "curltest",
         method: "getblock",
-        params: { blockhash: hash, verbosity: 1 }
+        params: { blockhash: hash, verbosity: 2 }
     };
     
     var tx_index = 0;
