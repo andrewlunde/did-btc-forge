@@ -186,8 +186,8 @@ const STAGE_ENUM = {
 if (!config) {
     console.log("No existing config found, creating a new one.  \nGenerating new mnemonic.");
 
-    // const mnemonic = generateMnemonic();
-    const mnemonic = 'same move resemble game system settle vicious zebra please swamp fitness good';
+    const mnemonic = generateMnemonic();
+    // const mnemonic = 'same move resemble game system settle vicious zebra please swamp fitness good';
 
 
 
