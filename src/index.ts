@@ -1385,7 +1385,8 @@ async function doSwitchStage(stage: string) {
 
                         utxo.index = vout.n;
                         utxo.value = (vout.value * 100000000);
-                        utxo.txid = tx.txid;
+                        utxo.txid = Buffer.from(tx.txid,'hex');
+                        // utxo.txid = vout.scriptPubKey.hex;
 
                         if (child1 && child1.privateKey) {
                             const child1Prv = child1.privateKey.toString('base64');
@@ -1412,9 +1413,9 @@ async function doSwitchStage(stage: string) {
                 
                 console.log("utxo.index: " + wutxo.utxo.index);
                 console.log("utxo.value: " + wutxo.utxo.value);
-                console.log(" utxo.txid: " + wutxo.utxo.txid);
+                console.log(" utxo.txid: " + wutxo.utxo.txid.toString('hex'));
                 // let pk = wutxo.privkey;
-                // console.log("   privkey: " + pk.toString());
+                // console.log("   privkey: " + wutxo.privkey.toString('base64'));
             } 
             
             // export type WalletUtxo = {
@@ -1433,6 +1434,7 @@ async function doSwitchStage(stage: string) {
             // };
             
 
+            console.log("network: " + didnetwork);
             // DidCreationParams
             const transaction = buildDidCreationTransaction({
                 multikey: encoding.prependCodecToKey(config.ed25519PubKey, 'ed25519-pub'),
