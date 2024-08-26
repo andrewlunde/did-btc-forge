@@ -1385,8 +1385,8 @@ async function doSwitchStage(stage: string) {
 
                         utxo.index = vout.n;
                         utxo.value = (vout.value * 100000000);
-                        utxo.txid = Buffer.from(tx.txid,'hex');
-                        // utxo.txid = vout.scriptPubKey.hex;
+                        // utxo.txid = Buffer.from(tx.txid,'hex');
+                        utxo.txid = Buffer.from(vout.scriptPubKey.hex,'hex');
 
                         if (child1 && child1.privateKey) {
                             const child1Prv = child1.privateKey.toString('base64');
