@@ -186,8 +186,8 @@ const STAGE_ENUM = {
 if (!config) {
     console.log("No existing config found, creating a new one.  \nGenerating new mnemonic.");
 
-    const mnemonic = generateMnemonic();
-    // const mnemonic = 'same move resemble game system settle vicious zebra please swamp fitness good';
+    // const mnemonic = generateMnemonic();
+    const mnemonic = 'exclude elder vessel what sorry kidney cactus symbol hour icon latin video';
 
 
 
@@ -239,7 +239,7 @@ if (!config) {
     root = bip32.fromSeed(seed,network);
 
     const tprv = root.toBase58();
-    // console.log("root tprv: " + tprv);
+    console.log("root tprv: " + tprv);
     console.log("Root Loaded...");
 
 }
