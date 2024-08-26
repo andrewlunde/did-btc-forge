@@ -1124,6 +1124,15 @@ async function doSwitchStage(stage: string) {
             var est: FeeEst;
             var currest: FeeEst;
 
+            est = await GetFeeEstimates(1);
+            ests.push(est);
+
+            est = await GetFeeEstimates(2);
+            ests.push(est);
+
+            est = await GetFeeEstimates(4);
+            ests.push(est);
+
             est = await GetFeeEstimates(6);
             ests.push(est);
 
