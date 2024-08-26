@@ -1249,7 +1249,7 @@ async function doSwitchStage(stage: string) {
             // Add a validator https://github.com/SBoudrias/Inquirer.js/tree/main/packages/input
             const changeAddressString = await input({ message: 'Change Address: ', default: addr_prefix+"..." });
 
-            config["prvKey"] = child1.privateKey?.toString('base64');
+            config["prvKey"] = keypair.privateKey?.toString('base64');
             config["changeAddr"] = changeAddressString;
 
             yes_continue = await confirm({ message: 'Continue?' });
@@ -1391,7 +1391,7 @@ async function doSwitchStage(stage: string) {
                             const child1Prv = child1.privateKey.toString('base64');
 
                             console.log("child1Prv: " + child1Prv);
-                            console.log("prvKey: " + config.prvKey);
+                            console.log("prvKey:    " + config.prvKey);
 
                             // wutxo.privkey = child1.privateKey;
                             wutxo.privkey = Buffer.from(config.prvKey,'base64',);
