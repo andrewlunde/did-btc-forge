@@ -163,7 +163,7 @@ async function setJSONconfig(message: string) {
 
 var config = await getJSONconfig(file_name);
 var root: BIP32Factory.BIP32Interface;
-var satoshis_needed = 5000;
+var satoshis_needed = 4000;
 
 
 const STAGE_ENUM = {
@@ -1334,7 +1334,7 @@ async function doSwitchStage(stage: string) {
             //     satsPerVByte,
             // } );
             
-            // console.log("utxopath:  " + utxopath);
+            console.log(" utxopath:  " + utxopath);
                         
             child1 = root.derivePath(utxopath);
             // const child1Prv = child1.privateKey?.toString('base64');
@@ -1372,7 +1372,7 @@ async function doSwitchStage(stage: string) {
 
                 utxopath = rootpath + "/0/"+(funding_index).toString();    // At this time we are only spending from the funding index
 
-                console.log("utxopath:  " + utxopath);
+                console.log("  utxopath:  " + utxopath);
                 
                 child1 = root.derivePath(utxopath);
 
