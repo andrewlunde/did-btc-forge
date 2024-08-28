@@ -76,27 +76,31 @@ else {
 var network = networks.testnet; // was networkk use bitcoin.networks.testnet for testnet
 var didnetwork = 'testnet'; // was network
 var addr_prefix = "tb1"; // TestNet Addresses
-var index = 0;
+var funding_index = 0;
 var rootpath = "m/86'/1'/0'"; // 86 = Taproot : 1 = Testnet3 
-var utxopath = rootpath + "/0/" + index.toString();
+var utxopath = rootpath + "/0/" + funding_index.toString();
+var bitcoincli = "bitcoin-cli ";
 if (btc_rpc_network == 'testnet') {
     network = networks.testnet; //use bitcoin.networks.testnet for testnet
     didnetwork = 'testnet';
     addr_prefix = "tb1"; // TestNet Addresses
     rootpath = "m/86'/1'/0'"; // Testnet3
-    utxopath = rootpath + "/0/" + index.toString();
+    utxopath = rootpath + "/0/" + funding_index.toString();
+    bitcoincli = "bitcoin-cli -testnet -rpcuser=" + btc_rpc_user + " -rpcpassword=" + btc_rpc_password + " ";
 }
 else if (btc_rpc_network == 'mainnet') {
     network = networks.bitcoin; //use bitcoin.networks.testnet for testnet
-    didnetwork = 'testnet';
+    didnetwork = 'mainnet';
     addr_prefix = "bc1"; // MainNet Addresses
     rootpath = "m/86'/0'/0'"; // Mainnet
-    utxopath = rootpath + "/0/" + index.toString();
+    utxopath = rootpath + "/0/" + funding_index.toString();
+    bitcoincli = "bitcoin-cli -rpcuser=" + btc_rpc_user + " -rpcpassword=" + btc_rpc_password + " -rpcconnect=" + btc_rpc_host + " -rpcport=" + btc_rpc_port + " ";
 }
 else {
     console.log("Unsupported network: " + btc_rpc_network);
     process.exit(1);
 }
+console.log(bitcoincli);
 async function fileExists(file_path) {
     try {
         await fs.access(file_path);
@@ -136,9 +140,10 @@ async function setJSONconfig(message) {
 }
 var config = await getJSONconfig(file_name);
 var root;
-var satoshis_needed = 5000;
+var satoshis_needed = 4000;
 const STAGE_ENUM = {
-    INITIAL: "initial",
+    MAIN_MENU: "main_menu",
+    CREATE_CONTINUE: "create_continue",
     GET_GEN_DID: "get_gen_did",
     EST_DID_TX: "est_did_tx",
     FUND_ADDR: "fund_addr",
@@ -152,12 +157,13 @@ const STAGE_ENUM = {
     ERROR: "error"
 };
 if (!config) {
-    console.log("No existing config found.  Generating new mnemonic.");
+    console.log("No existing config found, creating a new one.  \nGenerating new mnemonic.");
     // const mnemonic = generateMnemonic();
-    const mnemonic = 'same move resemble game system settle vicious zebra please swamp fitness good';
-    console.log("mnemonic: " + mnemonic);
+    const mnemonic = 'same move resemble game system settle vicious zebra please swamp fitness good'; // Mainnet Test 01
+    // const mnemonic = 'exclude elder vessel what sorry kidney cactus symbol hour icon latin video';
+    console.log("mnemonic: \n\n" + mnemonic + "\n");
     if (validateMnemonic(mnemonic)) {
-        console.log("mnemonic is valid");
+        console.log("mnemonic is valid.  Please write down the above sequence of words.\n");
     }
     else {
         console.log("mnemonic is NOT valid");
@@ -168,7 +174,7 @@ if (!config) {
     console.log("root tprv: " + tprv);
     const wifMaster = root.toWIF();
     console.log("wifMaster: " + wifMaster);
-    console.log("It will never be shown to you again.");
+    console.log("\nIt will never be shown to you again.");
     console.log("You will need it to recover funds.");
     const yes_continue = await confirm({ message: 'Continue?' });
     if (!yes_continue) {
@@ -178,7 +184,7 @@ if (!config) {
         mnemonic: mnemonic,
         tprv: tprv,
         wif: wifMaster,
-        stage: STAGE_ENUM.INITIAL
+        stage: STAGE_ENUM.CREATE_CONTINUE
     };
     const ok = await setJSONconfig(JSON.stringify(config, null, 2));
     if (!ok) {
@@ -192,13 +198,13 @@ else {
     const seed = mnemonicToSeedSync(config.mnemonic);
     root = bip32.fromSeed(seed, network);
     const tprv = root.toBase58();
-    // console.log("root tprv: " + tprv);
+    console.log("root tprv: " + tprv);
     console.log("Root Loaded...");
 }
 const blocks_to_confirm = 6; // Look back x for confirmed transactions
 const conf_target = 8; // Blocks for fee estimation
 const blocks_to_wait = blocks_to_confirm + 2; // Blocks wait for funds
-utxopath = rootpath + "/0/" + index.toString();
+utxopath = rootpath + "/0/" + funding_index.toString();
 var child1 = root.derivePath(utxopath);
 var privkey = child1.privateKey;
 var keypair = null;
@@ -520,6 +526,108 @@ const scan4utxos = async (funding_addr) => {
     // return total of found_satoshis
     return satoshis_found;
 };
+const GetConf4Tx = async (hash, conf_tx) => {
+    const body = {
+        jsonrpc: "1.0",
+        id: "curltest",
+        method: "getblock",
+        params: { blockhash: hash, verbosity: 2 }
+    };
+    var tx_index = 0;
+    var tx_confs = 0;
+    var tx_height = 0;
+    try {
+        const response = await axios.post(`http://${btc_rpc_host}:${btc_rpc_port}/`, body, {
+            auth: {
+                username: btc_rpc_user,
+                password: btc_rpc_password,
+            },
+        });
+        if (response && response.data) {
+            // console.log("blockhash: " + JSON.stringify(response.data, null, 2));
+            // console.log("size: " + response.data.result.size);
+            var txs = response.data.result.tx;
+            tx_confs = response.data.result.confirmations;
+            tx_height = response.data.result.height;
+            console.log("tx_height: " + tx_height);
+            console.log("tx_confs: " + tx_confs);
+            var tx = null;
+            var tx_found = false;
+            for (var i = 0; i < txs.length; i++) {
+                tx = txs[i];
+                // console.log("tx: " + JSON.stringify(tx,null,2));
+                // console.log("conf_tx: " + conf_tx);
+                if (tx.txid == conf_tx) {
+                    console.log("conf_tx: " + conf_tx);
+                    tx_found = true;
+                    tx_index = i;
+                }
+                // process.exit(1);
+            }
+            if (tx_found) {
+                return ({ blockheight: tx_height, blockindex: tx_index, blockconfs: tx_confs });
+            }
+            else {
+                return ({ blockheight: 0, blockindex: 0, blockconfs: 0 });
+            }
+        }
+        else {
+            console.log("Invalid response received");
+            return ({ blockheight: 0, blockindex: 0, blockconfs: 0 });
+        }
+    }
+    catch (error) {
+        if (axios.isAxiosError(error)) {
+            console.log("Axios Error Response:", error.response?.data);
+        }
+        else {
+            console.log("Error Message:", error.message);
+        }
+        return ({ blockheight: 0, blockindex: 0, blockconfs: 0 });
+    }
+};
+const scan4conf = async (tx, blocks) => {
+    var blockheight_found = 0;
+    var blockindex_found = 0;
+    var tx_confs = 0;
+    // var satoshis_found = config.satoshis_found;
+    var hash = "";
+    var vouts = null;
+    var vout = null;
+    var value = 0.0;
+    var addr = "";
+    var spk = null;
+    // Get the current_block
+    var current_block = await GetCurrentBlock();
+    current_block -= blocks_to_confirm; // Look back for confirmations
+    // Get the last_scanned from config
+    const last_scan_block = config.last_scan_block;
+    // if current_block > last_scanned
+    if (current_block > last_scan_block) {
+        // for each of last_scanned + 1 to current_block
+        for (var block = last_scan_block; block <= current_block; block++) {
+            console.log("Scanning block: " + block + " -> " + current_block);
+            process.stdout.write(".");
+            //   get the block hash
+            hash = await GetBlockHash(block);
+            // console.log("block hash: " + hash);
+            //   get the block transactions
+            const conf_result = await GetConf4Tx(hash, tx);
+            if ((conf_result.blockconfs != 0) && (conf_result.blockheight != 0) && (conf_result.blockindex != 0)) {
+                blockheight_found = conf_result.blockheight;
+                blockindex_found = conf_result.blockindex;
+                tx_confs = conf_result.blockconfs;
+                break;
+            }
+        }
+        // resave config with new last_scanned and array
+        // console.log("Updating config...");
+        config.last_scan_block = current_block;
+        await setJSONconfig(JSON.stringify(config, null, 2));
+    }
+    // return that the needed confirmations were found
+    return ({ "blockheight": blockheight_found, "blockindex": blockindex_found, "tx_confs": tx_confs });
+};
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -545,27 +653,28 @@ const wait4funds = async (funding_addr, satoshis_needed) => {
         }
     }
 };
-const wait4conf = async (funding_addr, satoshis_needed) => {
+const wait4conf = async (tx, blocks) => {
     // const utxos = await listUnspent(addr);
     const sleep_interval = 1 * 60 * 1000; // 60 seconds = 1min
     const iterations = blocks_to_wait * 10; // approx 120 mins
-    var satoshis_found = 0;
+    var conf_found = false;
     var show_once = false;
     for (var i = 0; i < iterations; i++) {
         // if satashi balance < required then wait 2 mins and try again max 1 hour
-        satoshis_found = await scan4utxos(funding_addr);
-        if (satoshis_found >= satoshis_needed) {
-            return satoshis_found;
+        const { blockheight, blockindex, tx_confs } = await scan4conf(tx, blocks);
+        if (tx_confs >= blocks) {
+            return ({ blockheight, blockindex });
         }
         else {
             if (!show_once) {
-                console.log("\n Waiting for next confirmed block... <Ctrl-C to abort>                                                                       \n");
+                console.log("\n Waiting for next block... <Ctrl-C to abort>                                                                       \n");
                 show_once = true;
             }
-            process.stdout.write(" Block " + config.last_scan_block + " : Waiting up to " + (iterations - i) + " mins for " + satoshis_needed + " sats at addr: " + funding_addr + "\r");
+            process.stdout.write(" Block " + config.last_scan_block + " : Waiting up to " + (iterations - i) + " mins for " + blocks + " confirmations of tx: " + tx + "\r");
             await sleep(sleep_interval);
         }
     }
+    return ({ blockheight: 0, blockindex: 0 });
 };
 const GetBlockchainInfo = async () => {
     const body = {
@@ -729,8 +838,60 @@ function toXOnly(pubkey) {
 async function doSwitchStage(stage) {
     var yes_continue = false;
     switch (stage) {
-        case STAGE_ENUM.INITIAL:
-            console.log("STAGE INITIAL");
+        case STAGE_ENUM.MAIN_MENU:
+            console.log("STAGE MAIN_MENU");
+            var choices = [
+                {
+                    name: 'Create a decentralized ID',
+                    value: 'create',
+                    description: 'Create a decentralized ID and forge it onto the Bitcoin blockchain.',
+                },
+                {
+                    name: 'Wait for Funds',
+                    value: 'wait_funds',
+                    description: 'Continue waiting for the funding transaction to reach 6 confirmations..',
+                },
+                {
+                    name: 'Wait for Confirm',
+                    value: 'wait_confirm',
+                    description: 'Continue waiting for the decentralized ID transaction to reach 6 confirmations..',
+                },
+                {
+                    name: 'Verify a decentralized ID',
+                    value: 'verify',
+                    description: 'Verify an existing decentralized ID that is the Bitcoin blockchain.',
+                },
+                {
+                    name: 'Exit Orange Forge',
+                    value: 'exit',
+                    description: 'Exit Orange Forge.  "npm run start" to restart',
+                }
+            ];
+            var answer = await select({
+                message: 'You can create a new Decentralized ID or verify an existing one.',
+                choices: choices
+            });
+            if (answer == 'create') {
+                doSwitchStage(STAGE_ENUM.CREATE_CONTINUE);
+            }
+            else if (answer == 'wait_funds') {
+                doSwitchStage(STAGE_ENUM.WAIT_FOR_FUNDS);
+            }
+            else if (answer == 'wait_confirm') {
+                doSwitchStage(STAGE_ENUM.WAIT_FOR_CONF);
+            }
+            else if (answer == 'verify') {
+                doSwitchStage(STAGE_ENUM.VERIFY_DID);
+            }
+            else if (answer == 'exit') {
+                doSwitchStage(STAGE_ENUM.ALL_FINISHED);
+            }
+            else {
+                process.exit(1);
+            }
+            break;
+        case STAGE_ENUM.CREATE_CONTINUE:
+            console.log("STAGE CREATE_CONTINUE");
             console.log("In order to forge a distributed ID approx " + satoshis_needed + " sats be funded to the following address.");
             yes_continue = await confirm({ message: 'Continue?' });
             var block = await GetCurrentBlock();
@@ -840,6 +1001,12 @@ async function doSwitchStage(stage) {
             var ests = [];
             var est;
             var currest;
+            est = await GetFeeEstimates(1);
+            ests.push(est);
+            est = await GetFeeEstimates(2);
+            ests.push(est);
+            est = await GetFeeEstimates(4);
+            ests.push(est);
             est = await GetFeeEstimates(6);
             ests.push(est);
             est = await GetFeeEstimates(8);
@@ -856,10 +1023,10 @@ async function doSwitchStage(stage) {
             ests.push(est);
             currest = await GetFeeEstimates(conf_target);
             console.log("Given the current estimated fee rate of " + currest.estFeeRate + " sats/vB the estimated fee is " + currest.estFee + " sats within " + currest.blocks + " blocks.");
-            var choices = [
+            choices = [
                 {
                     name: 'Continue with ' + currest.estFee + ' sats',
-                    value: currest.estFee,
+                    value: currest.estFee.toString(),
                     description: 'Continue to the next stage?',
                 }
             ];
@@ -867,11 +1034,11 @@ async function doSwitchStage(stage) {
                 est = ests[i];
                 choices.push({
                     name: 'Fee ' + est.estFee + " sats in " + est.blocks + " blocks = approx " + ((est.blocks) * 10) + " mins = " + (((est.blocks) * 10) / 60).toFixed(2) + " hours",
-                    value: est.estFee,
+                    value: est.estFee.toString(),
                     description: 'Select fee rate ' + est.estFeeRate + ' sats/vB = ' + est.estFee + ' sats for confirmation in approx ' + ((est.blocks) * 10) + ' minutes'
                 });
             }
-            const answer = await select({
+            answer = await select({
                 message: 'Continue or adjust fee.',
                 choices: choices
             });
@@ -879,7 +1046,7 @@ async function doSwitchStage(stage) {
             config.satsPerVByte = 5;
             for (var i = 0; i < ests.length; i++) {
                 est = ests[i];
-                if (answer == est.estFee) {
+                if (answer == est.estFee.toString()) {
                     config.satsPerVByte = est.estFeeRate;
                 }
             }
@@ -921,13 +1088,14 @@ async function doSwitchStage(stage) {
             // Look here... https://github.com/Eunovo/taproot-with-bitcoinjs/blob/main/src/index.ts
             // Also at the project taproot-with0-bitcoinjs 
             console.log("  [✔] Funding Address Genereated");
-            console.log("    Address [" + index + "] -> " + fundingAddressString);
+            console.log("    Address [" + funding_index + "] -> " + fundingAddressString);
             config["fundingAddr"] = fundingAddressString;
             // config["spendingPrv"] = child1.privateKey;
             console.log("It's difficult to estimate exactly the fees required.");
             console.log("Please enter a Taproot P2TR address(" + addr_prefix + "...) to receive any change.");
             // Add a validator https://github.com/SBoudrias/Inquirer.js/tree/main/packages/input
             const changeAddressString = await input({ message: 'Change Address: ', default: addr_prefix + "..." });
+            config["prvKey"] = keypair.privateKey?.toString('base64');
             config["changeAddr"] = changeAddressString;
             yes_continue = await confirm({ message: 'Continue?' });
             if (!yes_continue) {
@@ -1004,10 +1172,10 @@ async function doSwitchStage(stage) {
             //     verificationRelationshipFlags,
             //     satsPerVByte,
             // } );
-            console.log("utxopath:  " + utxopath);
+            console.log(" utxopath:  " + utxopath);
             child1 = root.derivePath(utxopath);
-            const child1Prv = child1.privateKey?.toString('base64');
-            console.log("child1Prv: " + child1Prv);
+            // const child1Prv = child1.privateKey?.toString('base64');
+            // console.log("child1Prv: " + child1Prv);
             var utxo = {
                 txid: Buffer.from('48452f42ac0accd63a0467f7e0406945320061bd19971bf34478582d76e85dbe', 'hex'),
                 index: 1,
@@ -1029,6 +1197,9 @@ async function doSwitchStage(stage) {
             for (var i = 0; i < txs.length; i++) {
                 tx = txs[i];
                 vouts = tx.vout;
+                utxopath = rootpath + "/0/" + (funding_index).toString(); // At this time we are only spending from the funding index
+                console.log("  utxopath:  " + utxopath);
+                child1 = root.derivePath(utxopath);
                 for (var n = 0; n < vouts.length; n++) {
                     vout = vouts[n];
                     if (vout.scriptPubKey &&
@@ -1036,14 +1207,14 @@ async function doSwitchStage(stage) {
                         (vout.scriptPubKey.address == config.fundingAddr)) {
                         utxo.index = vout.n;
                         utxo.value = (vout.value * 100000000);
-                        utxo.txid = tx.txid;
-                        utxopath = rootpath + "/0/" + (utxo.index).toString();
-                        console.log("utxopath:  " + utxopath);
-                        child1 = root.derivePath(utxopath);
+                        utxo.txid = Buffer.from(tx.txid, 'hex');
+                        // utxo.txid = Buffer.from(vout.scriptPubKey.hex,'hex');
                         if (child1 && child1.privateKey) {
                             const child1Prv = child1.privateKey.toString('base64');
                             console.log("child1Prv: " + child1Prv);
-                            wutxo.privkey = child1.privateKey;
+                            console.log("prvKey:    " + config.prvKey);
+                            // wutxo.privkey = child1.privateKey;
+                            wutxo.privkey = Buffer.from(config.prvKey, 'base64');
                             wutxo.utxo = utxo;
                             // console.log("wutxo:" + JSON.stringify(wutxo,null,2));
                             wutxos.push(wutxo);
@@ -1051,7 +1222,16 @@ async function doSwitchStage(stage) {
                     }
                 }
             }
-            console.log("utxos: \n" + JSON.stringify(wutxos, null, 2));
+            // console.log("utxos: \n" + JSON.stringify(wutxos,null,2) );
+            for (var n = 0; n < wutxos.length; n++) {
+                wutxo = wutxos[n];
+                console.log("wutxo[" + n + "]:");
+                console.log("utxo.index: " + wutxo.utxo.index);
+                console.log("utxo.value: " + wutxo.utxo.value);
+                console.log(" utxo.txid: " + wutxo.utxo.txid.toString('hex'));
+                // let pk = wutxo.privkey;
+                // console.log("   privkey: " + wutxo.privkey.toString('base64'));
+            }
             // export type WalletUtxo = {
             //     /**
             //      * A reference to the unspent transaction output (UTXO) to be spent for this transaction. This
@@ -1066,6 +1246,7 @@ async function doSwitchStage(stage) {
             //      */
             //     privkey: Uint8Array;
             // };
+            console.log("network: " + didnetwork);
             // DidCreationParams
             const transaction = buildDidCreationTransaction({
                 multikey: encoding.prependCodecToKey(config.ed25519PubKey, 'ed25519-pub'),
@@ -1077,8 +1258,9 @@ async function doSwitchStage(stage) {
                 didSats: 330,
                 verificationRelationshipFlags: verificationRelationshipFlags
             });
-            console.log("\nbitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV sendrawtransaction " + transaction.txHex);
-            console.log("\nbitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV decoderawtransaction " + transaction.txHex);
+            console.log("\n" + bitcoincli + "decoderawtransaction " + transaction.txHex);
+            console.log("\n" + bitcoincli + "sendrawtransaction " + transaction.txHex);
+            console.log("\nbtcdeb --verbose --txin=" + transaction.txHex);
             yes_continue = await confirm({ message: 'Continue?' });
             if (!yes_continue) {
                 process.exit(1);
@@ -1100,6 +1282,7 @@ async function doSwitchStage(stage) {
             else {
                 const did_create_tx = await BroadcastTransaction(config.did_create_tx_hex);
                 console.log("tx: " + did_create_tx);
+                config["tx"] = did_create_tx;
                 config.stage = STAGE_ENUM.WAIT_FOR_CONF;
                 await setJSONconfig(JSON.stringify(config, null, 2));
                 doSwitchStage(config.stage);
@@ -1107,12 +1290,11 @@ async function doSwitchStage(stage) {
             break;
         case STAGE_ENUM.WAIT_FOR_CONF:
             console.log("STAGE WAIT_FOR_CONF");
-            // const satoshis_found = await wait4funds(config.fundingAddr,additional_needed);
-            const blockheight = 2874198;
-            const blockindex = 3085;
+            const { blockheight, blockindex } = await wait4conf(config.tx, blocks_to_confirm);
+            console.log("Your Decentralized ID has been confirmed on the " + didnetwork + " blockchain.");
             yes_continue = await confirm({ message: 'Continue?' });
             if (!yes_continue) {
-                // process.exit(1);
+                process.exit(1);
             }
             else {
                 const didId = encodeDidBtc({
@@ -1158,17 +1340,18 @@ async function doSwitchStage(stage) {
                     // console.log("did: " + JSON.stringify(did,null,2));
                     const didDocument = buildDidDocument(did, exampleDidId);
                     console.log("didDocument: " + JSON.stringify(didDocument, null, 2));
-                    if (didDocument && didDocument.controller && didDocument.verificationMethod && didDocument.verificationMethod[0].publicKeyMultibase) {
-                        // const conr = didDocument.controller;
-                        const conr = "z6DtRpbEAfCqmG8vMqTKofDubR951CWghtS2ZMK7vkoofDQa";
-                        const dconr = encoding.decodeMultibase(conr);
-                        console.log(Buffer.from(dconr).toString('ascii'));
-                        const pkmb = didDocument.verificationMethod[0].publicKeyMultibase;
-                        console.log("pkmb: " + pkmb);
-                        const dpk = encoding.decodeMultikey(pkmb);
-                        // console.log("dpk: " + encoding.dpk.bytes));
-                        console.log(dpk.codecName);
-                    }
+                    // if (didDocument && didDocument.controller && didDocument.verificationMethod && didDocument.verificationMethod[0].publicKeyMultibase) {
+                    //     const epk = encoding.prependCodecToKey(config.ed25519PubKey, 'ed25519-pub');
+                    //     // const conr = didDocument.controller;
+                    //     const conr = "z6DtRpbEAfCqmG8vMqTKofDubR951CWghtS2ZMK7vkoofDQa";
+                    //     const dconr: Uint8Array = encoding.decodeMultibase(conr);
+                    //     console.log(Buffer.from(dconr).toString('ascii'));
+                    //     const pkmb = didDocument.verificationMethod[0].publicKeyMultibase;
+                    //     console.log("pkmb: " + pkmb);
+                    //     const dpk: encoding.DecodedKey = encoding.decodeMultikey(pkmb);
+                    //     // console.log("dpk: " + encoding.dpk.bytes));
+                    //     console.log(dpk.codecName);
+                    // }
                 }
                 else {
                     console.log("No didIndex.");
@@ -1191,10 +1374,13 @@ async function doSwitchStage(stage) {
             break;
         case STAGE_ENUM.ALL_FINISHED:
             console.log("STAGE ALL_FINISHED");
-            yes_continue = await confirm({ message: 'Rescan?' });
+            // yes_continue = await confirm({ message: 'Rescan?' });
+            yes_continue = false;
             if (!yes_continue) {
                 console.log("Complete...");
                 // process.exit(1);
+                config.stage = STAGE_ENUM.MAIN_MENU;
+                await setJSONconfig(JSON.stringify(config, null, 2));
             }
             else {
                 config.stage = STAGE_ENUM.FUND_ADDR;

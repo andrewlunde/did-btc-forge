@@ -107,7 +107,7 @@ if (btc_rpc_network == 'testnet') {
     addr_prefix = "tb1"; // TestNet Addresses
     rootpath = "m/86'/1'/0'"; // Testnet3
     utxopath = rootpath + "/0/"+funding_index.toString();
-    bitcoincli = "bitcoin-cli -testnet -rpcuser=iroxnnkko -rpcpassword=p3T9xW9u3WSxvV3oJdV ";
+    bitcoincli = "bitcoin-cli -rpcuser=" + btc_rpc_user + " -rpcpassword=" + btc_rpc_password + " -rpcconnect=" + btc_rpc_host + " -rpcport=" + btc_rpc_port + " ";
 
 } else if (btc_rpc_network == 'mainnet') {
     network = networks.bitcoin; //use bitcoin.networks.testnet for testnet
@@ -115,11 +115,14 @@ if (btc_rpc_network == 'testnet') {
     addr_prefix = "bc1"; // MainNet Addresses
     rootpath = "m/86'/0'/0'"; // Mainnet
     utxopath = rootpath + "/0/"+funding_index.toString();
+    bitcoincli = "bitcoin-cli -rpcuser=" + btc_rpc_user + " -rpcpassword=" + btc_rpc_password + " -rpcconnect=" + btc_rpc_host + " -rpcport=" + btc_rpc_port + " ";
 
 } else {
     console.log("Unsupported network: " + btc_rpc_network);
     process.exit(1);
 }
+
+console.log(bitcoincli);
 
 async function fileExists(file_path: string): Promise<boolean> {
     try {
@@ -167,7 +170,7 @@ var satoshis_needed = 4000;
 
 
 const STAGE_ENUM = {
-    CREATE_OR_VERIFY: "create_or_verify",
+    MAIN_MENU: "main_menu",
     CREATE_CONTINUE: "create_continue",
     GET_GEN_DID: "get_gen_did",
     EST_DID_TX: "est_did_tx",
@@ -187,8 +190,8 @@ if (!config) {
     console.log("No existing config found, creating a new one.  \nGenerating new mnemonic.");
 
     // const mnemonic = generateMnemonic();
-    const mnemonic = 'exclude elder vessel what sorry kidney cactus symbol hour icon latin video';
-
+    const mnemonic = 'same move resemble game system settle vicious zebra please swamp fitness good'; // Mainnet Test 01
+    // const mnemonic = 'exclude elder vessel what sorry kidney cactus symbol hour icon latin video';
 
 
     console.log("mnemonic: \n\n" + mnemonic + "\n");
@@ -949,14 +952,24 @@ async function doSwitchStage(stage: string) {
 
     var yes_continue = false;
     switch (stage) {
-        case STAGE_ENUM.CREATE_OR_VERIFY:
-            console.log("STAGE CREATE_OR_VERIFY");
+        case STAGE_ENUM.MAIN_MENU:
+            console.log("STAGE MAIN_MENU");
 
             var choices = [
                 {
                     name: 'Create a decentralized ID',
                     value: 'create',
                     description: 'Create a decentralized ID and forge it onto the Bitcoin blockchain.',
+                },
+                {
+                    name: 'Wait for Funds',
+                    value: 'wait_funds',
+                    description: 'Continue waiting for the funding transaction to reach 6 confirmations..',
+                },
+                {
+                    name: 'Wait for Confirm',
+                    value: 'wait_confirm',
+                    description: 'Continue waiting for the decentralized ID transaction to reach 6 confirmations..',
                 },
                 {
                     name: 'Verify a decentralized ID',
@@ -977,6 +990,10 @@ async function doSwitchStage(stage: string) {
     
             if (answer == 'create') {
                 doSwitchStage(STAGE_ENUM.CREATE_CONTINUE);
+            } else if (answer == 'wait_funds') {
+                doSwitchStage(STAGE_ENUM.WAIT_FOR_FUNDS);
+            } else if (answer == 'wait_confirm') {
+                doSwitchStage(STAGE_ENUM.WAIT_FOR_CONF);
             } else if (answer == 'verify') {
                 doSwitchStage(STAGE_ENUM.VERIFY_DID);
             } else if (answer == 'exit') {
@@ -1449,6 +1466,7 @@ async function doSwitchStage(stage: string) {
             
             console.log("\n" + bitcoincli + "decoderawtransaction " + transaction.txHex);
             console.log("\n" + bitcoincli + "sendrawtransaction " + transaction.txHex);
+            console.log("\nbtcdeb --verbose --txin=" + transaction.txHex);
 
             yes_continue = await confirm({ message: 'Continue?' });
             if (!yes_continue) {
@@ -1592,7 +1610,7 @@ async function doSwitchStage(stage: string) {
             if (!yes_continue) {
                 console.log("Complete...");
                 // process.exit(1);
-                config.stage = STAGE_ENUM.CREATE_OR_VERIFY;
+                config.stage = STAGE_ENUM.MAIN_MENU;
                 await setJSONconfig(JSON.stringify( config, null, 2 ));
             } else {
                 config.stage = STAGE_ENUM.FUND_ADDR;
