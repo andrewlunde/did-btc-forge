@@ -1535,7 +1535,7 @@ async function doSwitchStage(stage: string) {
 
         case STAGE_ENUM.VERIFY_DID:
             console.log("STAGE VERIFY_DID");
-            console.log("testnet sample did: " + "did:btc:test:8q7p-v92k-prqq-7s2k-6a");
+            console.log("testnet4 sample did: " + "did:btc:test:xjas-zqpq-qma4-5ry");
 
             const exampleDidId = await input({ message: 'Verify DidId: ', default: config.didId as string });
 
