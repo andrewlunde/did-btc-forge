@@ -15,6 +15,9 @@ const bip32 = BIP32Factory.default(ecc);
 import * as fs from 'node:fs/promises';
 import axios from 'axios';
 import { getMasterKeyFromSeed, getPublicKey } from 'ed25519-hd-key';
+import clear from 'clear';
+import chalk from 'chalk';
+import figlet from 'figlet';
 // IMPORTS etc above here ^^^
 /*
 export DATA_DIR=./data ; echo "DATA_DIR: $DATA_DIR"
@@ -86,7 +89,7 @@ if (btc_rpc_network == 'testnet') {
     addr_prefix = "tb1"; // TestNet Addresses
     rootpath = "m/86'/1'/0'"; // Testnet3
     utxopath = rootpath + "/0/" + funding_index.toString();
-    bitcoincli = "bitcoin-cli -testnet -rpcuser=" + btc_rpc_user + " -rpcpassword=" + btc_rpc_password + " ";
+    bitcoincli = "bitcoin-cli -rpcuser=" + btc_rpc_user + " -rpcpassword=" + btc_rpc_password + " -rpcconnect=" + btc_rpc_host + " -rpcport=" + btc_rpc_port + " ";
 }
 else if (btc_rpc_network == 'mainnet') {
     network = networks.bitcoin; //use bitcoin.networks.testnet for testnet
@@ -156,6 +159,8 @@ const STAGE_ENUM = {
     UNKNOWN: "unknown",
     ERROR: "error"
 };
+clear();
+console.log(chalk.rgb(255, 153, 0).bold(figlet.textSync('Orange Forge', { horizontalLayout: 'full' })));
 if (!config) {
     console.log("No existing config found, creating a new one.  \nGenerating new mnemonic.");
     // const mnemonic = generateMnemonic();
@@ -1313,7 +1318,7 @@ async function doSwitchStage(stage) {
             break;
         case STAGE_ENUM.VERIFY_DID:
             console.log("STAGE VERIFY_DID");
-            console.log("testnet sample did: " + "did:btc:test:8q7p-v92k-prqq-7s2k-6a");
+            console.log("testnet4 sample did: " + "did:btc:test:xjas-zqpq-qma4-5ry");
             const exampleDidId = await input({ message: 'Verify DidId: ', default: config.didId });
             // const satoshis_found = await wait4funds(config.fundingAddr,additional_needed);
             const decodedDidId = decodeDidBtc(exampleDidId);

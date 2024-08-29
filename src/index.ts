@@ -58,6 +58,10 @@ import { errors } from 'undici-types';
 
 import { derivePath, getMasterKeyFromSeed, getPublicKey } from 'ed25519-hd-key';
 
+import clear from 'clear';
+import chalk from 'chalk';
+import figlet from 'figlet';
+
 // IMPORTS etc above here ^^^
 
 /*
@@ -185,6 +189,10 @@ const STAGE_ENUM = {
     ERROR: "error"
 };
 
+
+
+clear();
+console.log(chalk.rgb(255, 153, 0).bold(figlet.textSync('Orange Forge', { horizontalLayout: 'full' })));
 
 if (!config) {
     console.log("No existing config found, creating a new one.  \nGenerating new mnemonic.");
