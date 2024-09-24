@@ -30,13 +30,14 @@
     "express": "^4.21.0",
     "figlet": "^1.7.0",
     "multiformats": "^13.2.2",
+    "nodemon": "^3.1.7",
     "tiny-secp256k1": "^2.2.1",
     "varuint-bitcoin": "^1.1.2"
   },
   "scripts": {
     "build": "tsc",
     "start": "yarn build && node dist/index.js",
-    "check": "yarn build && node dist/check.js",
+    "check": "yarn build && nodemon dist/check.js",
     "clean": "rm -rf ./dist/* ; rm -f tsconfig.tsbuildinfo ; rm -f yarn.lock"
   }
 }
