@@ -28,6 +28,16 @@ import {
 } from 'did-btc-sdk';
 import axios from 'axios';
 
+import {
+  initEccLib,
+  networks,
+  Signer,
+  payments,
+  crypto,
+  Transaction,
+  Psbt
+} from "bitcoinjs-lib";
+
 var btc_rpc_network = 'testnet';
 var btc_rpc_user = 'user';
 var btc_rpc_password = 'pass';

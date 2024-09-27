@@ -38,7 +38,7 @@
   "scripts": {
     "build": "tsc",
     "start": "yarn build && node dist/index.js",
-    "check": "yarn build && node dist/check.js",
+    "check": "git pull && yarn build && node dist/check.js",
     "clean": "rm -rf ./dist/* ; rm -f tsconfig.tsbuildinfo ; rm -f yarn.lock"
   }
 }
