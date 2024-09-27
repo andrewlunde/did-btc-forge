@@ -50,6 +50,12 @@ if (process.env.BTC_RPC_PASSWORD === undefined) { console.log("Missing BTC_RPC_P
 if (process.env.BTC_RPC_HOST === undefined) { console.log("Missing BTC_RPC_HOST"); } else {btc_rpc_host = process.env.BTC_RPC_HOST; }
 if (process.env.BTC_RPC_PORT === undefined) { console.log("Missing BTC_RPC_PORT"); } else {btc_rpc_port = process.env.BTC_RPC_PORT; }
 
+console.log("BTC_RPC_NETWORK: " + btc_rpc_network);
+console.log("BTC_RPC_USER: " + btc_rpc_user);
+console.log("BTC_RPC_PASSWORD: " + btc_rpc_password);
+console.log("BTC_RPC_HOST: " + btc_rpc_host);
+console.log("BTC_RPC_PORT: " + btc_rpc_port);
+
 //Define the network
 var network = networks.testnet; // was networkk use bitcoin.networks.testnet for testnet
 var didnetwork: Network = 'testnet'; // was network
@@ -228,9 +234,9 @@ app.get("/.well-known/did.json", async (req: Request, res: Response) => {
 
     if (typeof didIndex !== 'undefined') {
         const blockHash = await GetBlockHash(decodedDidId.blockHeight);
-        // console.log("blockHash:" + blockHash);
+        console.log("blockHash:" + blockHash);
         const tx = await GetTransactionAtIndex(blockHash, decodedDidId.txIndex);
-        // console.log("tx: " + JSON.stringify(tx,null,2));
+        console.log("tx: " + JSON.stringify(tx,null,2));
         // const result = await GetTransaction(blockHash);
         // GetTransaction();
         let txHex; // the transaction hex fetched from the blockchain using the decoded DID
